@@ -12,7 +12,9 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
+import usace.army.mil.erdc.pivots.models.IPivotIndex;
 import usace.army.mil.erdc.pivots.models.Pivot;
+import usace.army.mil.erdc.pivots.models.PivotIndexFactory;
 import usace.army.mil.erdc.pivots.models.Point;
 
 public class PivotTester {
@@ -36,7 +38,7 @@ public class PivotTester {
 		return points;
 	}
 	
-	private static void runTest(List<Point> points, PivotIndex pivotIndex){
+	private static void runTest(List<Point> points, IPivotIndex pivotIndex){
 		
 		//Select 100 points at random from the newly create points to be pivots
 		//List<Pivot> pivots = choosePivotsRandomly(points);
@@ -73,7 +75,8 @@ public class PivotTester {
 	}
 
 	private static void runPivotTest(){
-		PivotIndex pivotIndex = new PivotIndex();
+		PivotIndexFactory indexFactory = new PivotIndexFactory();
+		IPivotIndex pivotIndex = indexFactory.getIndex(IPivotIndex.PivotIndexType.SINGLE_NODE);
 		//Randomly populate points from 0 - 1000
 		//List<Point> points = PivotIndex.populatePointsRandomly();
 		//System.out.println("Starting pivot test on random points....");

@@ -16,6 +16,8 @@ import org.apache.hadoop.io.Text;
 import com.beust.jcommander.Parameter;
 
 import usace.army.mil.erdc.pivots.PivotTester;
+import usace.army.mil.erdc.pivots.models.IPivotIndex;
+import usace.army.mil.erdc.pivots.models.PivotIndexFactory;
 
 public class AccumuloPivotTester extends PivotTester {
 	
@@ -43,6 +45,9 @@ public class AccumuloPivotTester extends PivotTester {
 		opts.parseArgs(AccumuloPivotTester.class.getName(), args, bwOpts);
 		connectionManager = new AccumuloConnectionManager(opts);
 		connectionManager.connect();
+		
+		PivotIndexFactory indexFactory = new PivotIndexFactory();
+		IPivotIndex pivotIndex = indexFactory.getIndex(IPivotIndex.PivotIndexType.ACCUMULO);
 	}
 
 	public static void main(String [] args){

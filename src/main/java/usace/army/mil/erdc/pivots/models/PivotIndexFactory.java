@@ -4,7 +4,7 @@ import usace.army.mil.erdc.pivots.PivotIndex;
 import usace.army.mil.erdc.pivots.accumulo.AccumuloPivotIndex;
 
 public class PivotIndexFactory {
-	public IPivotIndex getPoint(IPivotIndex.PivotIndexType indexType){
+	public IPivotIndex getIndex(IPivotIndex.PivotIndexType indexType){
 		switch(indexType){
 		case SINGLE_NODE:
 			return new PivotIndex();
