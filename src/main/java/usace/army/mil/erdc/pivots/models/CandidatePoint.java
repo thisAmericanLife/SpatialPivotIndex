@@ -27,7 +27,6 @@ public class CandidatePoint extends Point implements Comparable<CandidatePoint>,
 	}
 
 	//Comparator
-	@Override
 	public int compareTo(CandidatePoint point) {
 		return Double.compare(this.distanceToQueryPoint, point.getDistanceToQueryPoint());
 	}

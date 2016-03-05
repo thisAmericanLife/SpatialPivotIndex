@@ -1,6 +1,6 @@
 package usace.army.mil.erdc.pivots.models;
 
-public interface IPoint {
+public interface IPoint{
 	public double getX();
 	public void setX(double x);
 	public double getY();
