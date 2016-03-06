@@ -8,7 +8,7 @@ public interface IPivotIndex {
 		SINGLE_NODE,
 		ACCUMULO
 	}
-	public List<Pivot> choosePivotsSparseSpatialIndex(List<Point> points);
+	public List<Pivot> choosePivotsSparseSpatialIndex(List<Point> points, boolean useConvexHull);
 	
 	public List<Pivot> populatePivotMapValues(List<Pivot>pivots, List<Point> points);
 	

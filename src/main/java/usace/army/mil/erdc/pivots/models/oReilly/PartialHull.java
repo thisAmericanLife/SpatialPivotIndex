@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import usace.army.mil.erdc.pivots.models.IPoint;
 import usace.army.mil.erdc.pivots.models.Point;
+import usace.army.mil.erdc.pivots.models.PointFactory;
 
 
 /**
@@ -97,10 +98,14 @@ public class PartialHull {
 	 * @return index one greater than last one inserted.
 	 */
 	public int transcribe(IPoint[] hull, int offset) {
+		PointFactory pointFactory = new PointFactory();
 		int idx = offset;
 		int sz = points.size();
 		for (int i = 0; i < sz; i++) {
-			hull[idx++] = points.get(i);
+			Point p = (Point) pointFactory.getPoint(IPoint.PointType.POINT);
+			p.setX(points.get(i).getX());
+			p.setY(points.get(i).getY());
+			hull[idx++] = p;
 		}
 		
 		return idx;
@@ -114,9 +119,13 @@ public class PartialHull {
 	 * @param num       number of points to transcribe
 	 */
 	public int transcribe(IPoint[] hull, int offset, int num) {
+		PointFactory pointFactory = new PointFactory();
 		int idx = offset;
 		for (int i = 0; i < num; i++) {
-			hull[idx++] = points.get(i);
+			Point p = (Point) pointFactory.getPoint(IPoint.PointType.POINT);
+			p.setX(points.get(i).getX());
+			p.setY(points.get(i).getY());
+			hull[idx++] = p;
 		}
 		
 		return idx;

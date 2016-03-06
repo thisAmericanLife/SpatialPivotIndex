@@ -6,8 +6,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
@@ -56,6 +58,19 @@ public class ConvexHullTester {
 		return points;
 	}
 	
+	private static Set<IPoint> getUniquePoints(IPoint [] points){
+		Set<IPoint> uniquePoints = new HashSet<IPoint>();
+		List<IPoint> duplicatePoints = new ArrayList<IPoint>();
+		for(int i = 0; i < points.length; i++){
+			if(uniquePoints.contains(points[i])){
+				duplicatePoints.add(points[i]);
+			} else{
+				uniquePoints.add(points[i]);
+			}
+		}
+		return uniquePoints;
+	}
+	
 	public static void main(String [] args){
 		//Test California Roads Dataset
 		List<Point> californiaPoints = populatePointsFromCaliforniaRoadsDataset();
@@ -63,9 +78,11 @@ public class ConvexHullTester {
 		caliPoints = californiaPoints.toArray(caliPoints);
 		
 		IPoint [] convexHull = PivotUtilities.compute(caliPoints);
+		Set<IPoint> uniqueHullPoints = getUniquePoints(convexHull);
 		assert(convexHull.length < caliPoints.length);
 		System.out.println("Original dataset size: " + caliPoints.length);
 		System.out.println("Convex hull size: " + convexHull.length);
+		System.out.println("Unique hull size: " + uniqueHullPoints.size());
 		
 		//Test Walking Dead Twitter Dataset
 		List<Point> zombiePoints = populatePointsFromWalkingDeadDataset();
@@ -73,6 +90,7 @@ public class ConvexHullTester {
 		zombiePointsArray = zombiePoints.toArray(zombiePointsArray);
 		
 		IPoint [] zombieHull = PivotUtilities.compute(zombiePointsArray);
+		Set<IPoint> uniqueZombieHullPoints = getUniquePoints(zombieHull);
 		assert(zombieHull.length < zombiePointsArray.length);
 		if(zombieHull.length < zombiePointsArray.length){
 			System.out.println("Successful convex hull computation achieved");
@@ -81,6 +99,7 @@ public class ConvexHullTester {
 		}
 		System.out.println("Original dataset size: " + zombiePointsArray.length);
 		System.out.println("Convex hull size: " + zombieHull.length);
+		System.out.println("Unique hull size: " + uniqueZombieHullPoints.size());
 		//1,132,878
 		//1,238,920
 	}

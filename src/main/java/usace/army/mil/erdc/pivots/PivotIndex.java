@@ -1,9 +1,11 @@
 package usace.army.mil.erdc.pivots;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -86,21 +88,57 @@ public class PivotIndex implements IPivotIndex {
 		}
 		return pivots;
 	}
+	
+	private static List<Point> getUniquePoints(IPoint [] points){
+		Set<IPoint> uniquePoints = new HashSet<IPoint>();
+		List<IPoint> duplicatePoints = new ArrayList<IPoint>();
+		List<Point> pointList = new ArrayList<Point>();
+		for(int i = 0; i < points.length; i++){
+			if(uniquePoints.contains(points[i])){
+				duplicatePoints.add(points[i]);
+			} else{
+					if(i != points.length -1){
+						uniquePoints.add(points[i]);
+						pointList.add((Point)points[i]);
+					}
+			}
+		}
+		return pointList;
+	}
+	
+	private List<Point> getConvexHullPoints(List<Point> points){
+		//Convert to Array, as this works better with the convex hull computation
+		Point [] pointArray = new Point[points.size()];
+		return getUniquePoints(PivotUtilities.compute(points.toArray(pointArray)));
+	}
 
-	public List<Pivot> choosePivotsSparseSpatialIndex(List<Point> points){
+	public List<Pivot> choosePivotsSparseSpatialIndex(List<Point> points, boolean useConvexHull){
 		List<Pivot> pivots = new ArrayList<Pivot>();
 		//Get maximum distance-- brute force for now :/
 		double maximumDistance = 0.0;
 		double temporaryDistance = 0.0;
 		double alpha = 0.37;
 		//Loop through each point to point maximum distance between objects in collection
-		//TODO: consider strategies for avoiding O(n^2) search
-		for(Point outterPoint: points){
-			for(Point innerPoint: points){
-				if(! outterPoint.equals(innerPoint)){
-					temporaryDistance = PivotUtilities.getDistance(outterPoint, innerPoint);
-					if(temporaryDistance > maximumDistance){
-						maximumDistance = temporaryDistance;
+		if(useConvexHull){
+			List<Point> boundaryPoints = getConvexHullPoints(points);
+			for(Point outterPoint: boundaryPoints){
+				for(Point innerPoint: boundaryPoints){
+					if(! outterPoint.equals(innerPoint)){
+						temporaryDistance = PivotUtilities.getDistance(outterPoint, innerPoint);
+						if(temporaryDistance > maximumDistance){
+							maximumDistance = temporaryDistance;
+						}
+					}
+				}
+			}
+		} else{
+			for(Point outterPoint: points){
+				for(Point innerPoint: points){
+					if(! outterPoint.equals(innerPoint)){
+						temporaryDistance = PivotUtilities.getDistance(outterPoint, innerPoint);
+						if(temporaryDistance > maximumDistance){
+							maximumDistance = temporaryDistance;
+						}
 					}
 				}
 			}

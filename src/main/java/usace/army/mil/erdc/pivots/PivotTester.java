@@ -70,7 +70,7 @@ public class PivotTester {
 		
 		//Select pivots via Sparse Spatial Indexing
 		System.out.println("Selecting pivots.");
-		List<Pivot> pivots = pivotIndex.choosePivotsSparseSpatialIndex(points);
+		List<Pivot> pivots = pivotIndex.choosePivotsSparseSpatialIndex(points, true);
 		long pivotSelectionTime = System.currentTimeMillis();
 		System.out.println("Time taken to select pivots: " + (pivotSelectionTime - startTime)  + " milliseconds." );
 		//Populate pivot information
