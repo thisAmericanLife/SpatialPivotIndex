@@ -65,7 +65,7 @@ public class Point implements IPoint {
 
 	public boolean equals(Point point) {
 		// TODO Auto-generated method stub
-		return false;
+		return (this.x == point.getX() && this.y == point.getY());
 	}
 
 	public String getUID() {
