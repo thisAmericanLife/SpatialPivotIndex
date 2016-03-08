@@ -1,5 +1,9 @@
 package usace.army.mil.erdc.pivots;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -106,6 +110,28 @@ public class PivotIndex implements IPivotIndex {
 		return pointList;
 	}
 	
+	private static void writePointsToWRT(List<Point> points){
+			try{
+			File file = new File("/tmp/WKT.csv");
+	
+			// if file doesn't exists, then create it
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+	
+			FileWriter fw = new FileWriter(file.getAbsoluteFile());
+			BufferedWriter bw = new BufferedWriter(fw);
+			for(Point point : points){
+				bw.write("\"Point (" + point.getX() + " " + point.getY() + ")\"\n");
+			}
+			
+			bw.close();
+			} catch(IOException e){
+				e.printStackTrace();
+			}
+
+	}
+	
 	private List<Point> getConvexHullPoints(List<Point> points){
 		//Convert to Array, as this works better with the convex hull computation
 		Point [] pointArray = new Point[points.size()];
@@ -121,27 +147,9 @@ public class PivotIndex implements IPivotIndex {
 		//Loop through each point to point maximum distance between objects in collection
 		if(useConvexHull){
 			List<Point> boundaryPoints = getConvexHullPoints(points);
-			for(Point outterPoint: boundaryPoints){
-				for(Point innerPoint: boundaryPoints){
-					if(! outterPoint.equals(innerPoint)){
-						temporaryDistance = PivotUtilities.getDistance(outterPoint, innerPoint);
-						if(temporaryDistance > maximumDistance){
-							maximumDistance = temporaryDistance;
-						}
-					}
-				}
-			}
+			maximumDistance = PivotUtilities.searchForMaxDistanceInParallel(boundaryPoints);
 		} else{
-			for(Point outterPoint: points){
-				for(Point innerPoint: points){
-					if(! outterPoint.equals(innerPoint)){
-						temporaryDistance = PivotUtilities.getDistance(outterPoint, innerPoint);
-						if(temporaryDistance > maximumDistance){
-							maximumDistance = temporaryDistance;
-						}
-					}
-				}
-			}
+			maximumDistance = PivotUtilities.searchForMaxDistanceInParallel(points);
 		}
 		//Loop through each point...again...to determine if each point candidate satisfies 
 		//	M = max { d ( x, y ) /x,y ∈ U }

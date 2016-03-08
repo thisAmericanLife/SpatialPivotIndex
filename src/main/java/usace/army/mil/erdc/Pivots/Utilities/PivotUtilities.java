@@ -1,5 +1,8 @@
 package usace.army.mil.erdc.Pivots.Utilities;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import usace.army.mil.erdc.pivots.models.IPoint;
 import usace.army.mil.erdc.pivots.models.Point;
 import usace.army.mil.erdc.pivots.models.oReilly.PartialHull;
@@ -73,5 +76,37 @@ public class PivotUtilities {
 		    lower.transcribe (hull, num-1, lower.size() - 2);
 		    
 		    return hull;
+		}
+		
+		private static List<ParallelSearchThread> getParallelSearchThreads(List<Point> points){
+			List<ParallelSearchThread> threads = new ArrayList<ParallelSearchThread>();
+			Double quarterPointFloat = new Double(points.size() / 4.0);
+			Double midpointFloat = new Double(points.size() / 2.0);
+			int quarterPoint = quarterPointFloat.intValue();
+			int midpoint = midpointFloat.intValue();
+			
+			threads.add(new ParallelSearchThread(points, points.subList(0, quarterPoint)));
+			threads.add(new ParallelSearchThread(points, points.subList(quarterPoint + 1, midpoint)));
+			threads.add(new ParallelSearchThread(points, points.subList(midpoint + 1, midpoint + quarterPoint)));
+			threads.add(new ParallelSearchThread(points, points.subList(midpoint + quarterPoint + 1, points.size())));
+			
+			return threads;
+		}
+		
+		public static double searchForMaxDistanceInParallel(List<Point> points){
+			List<ParallelSearchThread> threads = getParallelSearchThreads(points);
+			try{
+				//Start threads
+				for(ParallelSearchThread thread : threads){
+					thread.start();
+				}
+				//Join threads and wait until completion of tasks
+				for(ParallelSearchThread thread : threads){
+					thread.join();
+				}
+			}catch(InterruptedException e){
+				System.out.println("Execution of multithreaded search interrupted.");
+			}
+			return ParallelSearchThread.getMaxDistance();
 		}
 }
