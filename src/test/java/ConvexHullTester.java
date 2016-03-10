@@ -69,18 +69,22 @@ public class ConvexHullTester {
 			return points;
 		}
 	
-	private static List<Point> populatePointsFromCaliforniaRoadsDataset(){
-		List<Point> points = new ArrayList<Point>();
-		try (Stream<String> stream = Files.lines(Paths.get(CALIFORNIA_ROADS_PATH),Charset.defaultCharset())) {
-			stream
-			.forEach(e -> points.add(new Point(Double.parseDouble(Arrays.asList(e.split(" ")).get(1)),
-					Double.parseDouble(Arrays.asList(e.split(" ")).get(2)))));
-		} catch (IOException ex) {
-			ex.printStackTrace();
-			System.exit(0);
-		} 
-		return points;
-	}
+	 private static List<Point> populatePointsFromCaliforniaRoadsDataset(){
+			List<Point> points = new ArrayList<Point>();
+			
+			try (BufferedReader br = new BufferedReader(new FileReader(CALIFORNIA_ROADS_PATH))) {
+				String line;
+				while ((line = br.readLine()) != null) {
+					points.add(new Point(Double.parseDouble(Arrays.asList(line.split(" ")).get(1)),
+							Double.parseDouble(Arrays.asList(line.split(" ")).get(2))));
+					
+				}
+			}catch (IOException ex) {
+				ex.printStackTrace();
+				System.exit(0);
+			} 
+			return points;
+		}
 	
 	private static List<Point> getUniquePoints(IPoint [] points){
 		Set<IPoint> uniquePoints = new HashSet<IPoint>();
@@ -107,7 +111,7 @@ public class ConvexHullTester {
 				writePointsToWRT(californiaPoints, "/tmp/californiaPoints.csv");
 				
 				
-				IPoint [] convexHull = PivotUtilities.compute(caliPoints);
+				IPoint [] convexHull = PivotUtilities.computeConvexHullOReilly(caliPoints);
 				List<Point> uniqueHullPoints = getUniquePoints(convexHull);
 				writePointsToWRT(uniqueHullPoints, "/tmp/californiaHullPoints.csv");
 				
@@ -122,7 +126,7 @@ public class ConvexHullTester {
 				Point [] zombiePointsArray = new Point[californiaPoints.size()];
 				zombiePointsArray = zombiePoints.toArray(zombiePointsArray);
 				
-				IPoint [] zombieHull = PivotUtilities.compute(zombiePointsArray);
+				IPoint [] zombieHull = PivotUtilities.computeConvexHullOReilly(zombiePointsArray);
 				List<Point> uniqueZombieHullPoints = getUniquePoints(zombieHull);
 				
 				writePointsToWRT(uniqueZombieHullPoints, "/tmp/zombieHullPoints.csv");
@@ -140,30 +144,14 @@ public class ConvexHullTester {
 				//1,238,920
 	}
 	
-	private static Coordinate [] convertPointListToCoordArray(List<Point> points){
-		Coordinate [] coordinates = new Coordinate[points.size()];
-		int i = 0;
-		for(Point point : points){
-			coordinates[i] = new Coordinate(point.getX(), point.getY());
-			i++;
-		}
-		return coordinates;
-	}
 	
-	private static List<Point> convertCoordArrayToPointList(Coordinate [] coordinates){
-		List<Point> pointList = new ArrayList<Point>();
-		for(int i = 0; i < coordinates.length; i++){
-			pointList.add(new Point(coordinates[i].x, coordinates[i].y));
-		}
-		return pointList;
-	}
 	
 	private static void runJTSConvexHullTest(List<Point> californiaPoints, List<Point> zombiePoints){
-		ConvexHull convexHull = new ConvexHull(convertPointListToCoordArray(californiaPoints), new GeometryFactory());
-		writePointsToWRT(convertCoordArrayToPointList(convexHull.getConvexHull().getCoordinates()), "/tmp/californiaHullPoints_JTS.csv");
+		ConvexHull convexHull = new ConvexHull(PivotUtilities.convertPointListToCoordArray(californiaPoints), new GeometryFactory());
+		writePointsToWRT(PivotUtilities.convertCoordArrayToPointList(convexHull.getConvexHull().getCoordinates()), "/tmp/californiaHullPoints_JTS.csv");
 		
-		ConvexHull zombieConvexHull = new ConvexHull(convertPointListToCoordArray(zombiePoints), new GeometryFactory());
-		writePointsToWRT(convertCoordArrayToPointList(zombieConvexHull.getConvexHull().getCoordinates()), "/tmp/zombieHullPoints_JTS.csv");
+		ConvexHull zombieConvexHull = new ConvexHull(PivotUtilities.convertPointListToCoordArray(zombiePoints), new GeometryFactory());
+		writePointsToWRT(PivotUtilities.convertCoordArrayToPointList(zombieConvexHull.getConvexHull().getCoordinates()), "/tmp/zombieHullPoints_JTS.csv");
 	}
 	
 	public static void main(String [] args){

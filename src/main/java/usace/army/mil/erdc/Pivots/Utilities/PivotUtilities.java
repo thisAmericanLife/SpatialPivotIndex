@@ -3,6 +3,8 @@ package usace.army.mil.erdc.Pivots.Utilities;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.vividsolutions.jts.geom.Coordinate;
+
 import usace.army.mil.erdc.pivots.models.IPoint;
 import usace.army.mil.erdc.pivots.models.Point;
 import usace.army.mil.erdc.pivots.models.oReilly.PartialHull;
@@ -17,7 +19,7 @@ public class PivotUtilities {
 		}
 		
 		
-		public static IPoint[] compute (final IPoint[] points) {
+		public static IPoint[] computeConvexHullOReilly (final IPoint[] points) {
 		    // sort by x-coordinate (and if ==, by y-coordinate). 
 		    final int n = points.length;
 		    
@@ -108,5 +110,23 @@ public class PivotUtilities {
 				System.out.println("Execution of multithreaded search interrupted.");
 			}
 			return ParallelSearchThread.getMaxDistance();
+		}
+		
+		public static Coordinate [] convertPointListToCoordArray(List<Point> points){
+			Coordinate [] coordinates = new Coordinate[points.size()];
+			int i = 0;
+			for(Point point : points){
+				coordinates[i] = new Coordinate(point.getX(), point.getY());
+				i++;
+			}
+			return coordinates;
+		}
+		
+		public static List<Point> convertCoordArrayToPointList(Coordinate [] coordinates){
+			List<Point> pointList = new ArrayList<Point>();
+			for(int i = 0; i < coordinates.length; i++){
+				pointList.add(new Point(coordinates[i].x, coordinates[i].y));
+			}
+			return pointList;
 		}
 }

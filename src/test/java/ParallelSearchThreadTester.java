@@ -38,14 +38,17 @@ public class ParallelSearchThreadTester {
 		}
 		return points;
 	}
-	
 	private static List<Point> populatePointsFromCaliforniaRoadsDataset(){
 		List<Point> points = new ArrayList<Point>();
-		try (Stream<String> stream = Files.lines(Paths.get(CALIFORNIA_ROADS_PATH),Charset.defaultCharset())) {
-			stream
-			.forEach(e -> points.add(new Point(Double.parseDouble(Arrays.asList(e.split(" ")).get(1)),
-					Double.parseDouble(Arrays.asList(e.split(" ")).get(2)))));
-		} catch (IOException ex) {
+		
+		try (BufferedReader br = new BufferedReader(new FileReader(CALIFORNIA_ROADS_PATH))) {
+			String line;
+			while ((line = br.readLine()) != null) {
+				points.add(new Point(Double.parseDouble(Arrays.asList(line.split(" ")).get(1)),
+						Double.parseDouble(Arrays.asList(line.split(" ")).get(2))));
+				
+			}
+		}catch (IOException ex) {
 			ex.printStackTrace();
 			System.exit(0);
 		} 

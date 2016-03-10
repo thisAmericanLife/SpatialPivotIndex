@@ -8,9 +8,11 @@ import org.apache.accumulo.core.cli.ClientOnRequiredTable;
 import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.BatchWriter;
+import org.apache.accumulo.core.client.BatchWriterConfig;
 import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.client.MutationsRejectedException;
 import org.apache.accumulo.core.client.Scanner;
+import org.apache.accumulo.core.client.TableExistsException;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Mutation;
@@ -26,6 +28,24 @@ public class AccumuloConnectionManager {
 
 	public AccumuloConnectionManager(ClientOnRequiredTable opts){
 		AccumuloConnectionManager.opts = opts;
+	}
+	
+	public void verifyTableExistence(String tableName){
+		if(!connector.tableOperations().exists(tableName))
+		{
+			try {
+				connector.tableOperations().create(tableName);
+			} catch (AccumuloException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (AccumuloSecurityException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (TableExistsException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public void connect(){
@@ -102,10 +122,11 @@ public class AccumuloConnectionManager {
 	//Takes list of Mutations as input, adds them to memory 
 	//      efficient batch writer from table/instance configurations
 	//      provided in main(), then wrties to Accumulo
-	public static void writeMutations(List<Mutation> mutations, BatchWriterOpts bwOpts){
+	public static void writeMutations(List<Mutation> mutations, BatchWriterOpts bwOpts, BatchWriterConfig bwConfig){
 		try{
 			BatchWriter writer =
-					connector.createBatchWriter(opts.getTableName(), bwOpts.getBatchWriterConfig());
+					connector.createBatchWriter(opts.getTableName(), 
+							bwConfig);
 			for(Mutation mutation : mutations){
 				writer.addMutation(mutation);
 			}
@@ -114,6 +135,23 @@ public class AccumuloConnectionManager {
 			ex.printStackTrace();
 		}
 	}
+	//Takes list of Mutations as input, adds them to memory 
+		//      efficient batch writer from table/instance configurations
+		//      provided in main(), then wrties to Accumulo
+		public static void writeMutations(List<Mutation> mutations, BatchWriterOpts bwOpts){
+			try{
+				BatchWriter writer =
+						connector.createBatchWriter(opts.getTableName(), 
+								bwOpts.getBatchWriterConfig());
+				for(Mutation mutation : mutations){
+					writer.addMutation(mutation);
+				}
+				writer.close(); //This performs the flush and actual write to HDFS
+			} catch (MutationsRejectedException | TableNotFoundException ex){
+				ex.printStackTrace();
+			}
+		}
+	
 	//Getters and setters
 	public Connector getConnector() {
 		return connector;

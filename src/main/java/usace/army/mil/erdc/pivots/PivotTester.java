@@ -31,11 +31,15 @@ public class PivotTester {
 	
 	private static List<Point> populatePointsFromCaliforniaRoadsDataset(){
 		List<Point> points = new ArrayList<Point>();
-		try (Stream<String> stream = Files.lines(Paths.get(CALIFORNIA_ROADS_PATH),Charset.defaultCharset())) {
-			stream
-			.forEach(e -> points.add(new Point(Double.parseDouble(Arrays.asList(e.split(" ")).get(1)),
-					Double.parseDouble(Arrays.asList(e.split(" ")).get(2)))));
-		} catch (IOException ex) {
+		
+		try (BufferedReader br = new BufferedReader(new FileReader(CALIFORNIA_ROADS_PATH))) {
+			String line;
+			while ((line = br.readLine()) != null) {
+				points.add(new Point(Double.parseDouble(Arrays.asList(line.split(" ")).get(1)),
+						Double.parseDouble(Arrays.asList(line.split(" ")).get(2))));
+				
+			}
+		}catch (IOException ex) {
 			ex.printStackTrace();
 			System.exit(0);
 		} 
@@ -61,7 +65,7 @@ public class PivotTester {
 			return points;
 		}
 	
-	private static void runTest(List<Point> points, IPivotIndex pivotIndex){
+	private static void runTest(List<Point> points, IPivotIndex pivotIndex, boolean rangeQuery, boolean kNNQuery, double range, int k){
 		
 		//Select 100 points at random from the newly create points to be pivots
 		//List<Pivot> pivots = choosePivotsRandomly(points);
@@ -85,25 +89,30 @@ public class PivotTester {
 		System.out.println("Query point: " + queryPoint.getX() + ", " + queryPoint.getY() + ".");
 		//Get distances map
 		Map<Double, Pivot> distanceMap = PivotIndex.getDistanceMap(points, pivots, queryPoint);
-		/*for(Map.Entry<Double, Pivot> kvPair : distanceMap.entrySet()){
-					System.out.println("Pivot(" + kvPair.getValue().getX() + ", " + kvPair.getValue().getY() +
-							") is " + kvPair.getKey() + " units from query pngoint.");
-				}*/
-		//Solve range query for specified range and number of neighbors
-		System.out.println("Performing range query...");
-		double range = 250.0;
-		List<Point> nearestNeighbors = pivotIndex.rangeQuery(points, pivots, queryPoint, 
-				distanceMap, range);
-		long rangeQueryTime = System.currentTimeMillis();
-		System.out.println("Time taken to perform range query: " + (rangeQueryTime - pivotMapTime) + " milliseconds." );
-		System.out.println("Nearest neighbors: ");
-		for(Point neighbor: nearestNeighbors){
-			System.out.println("Neighbor: " + neighbor.getX() + ", " + neighbor.getY() + 
-					".  Distance from query point: " + PivotUtilities.getDistance(queryPoint, neighbor) +
-					".");
-			if(nearestNeighbors.indexOf(neighbor) > 9){
-				break;
+		
+		//Perform range query for specified range and number of neighbors
+		if(rangeQuery){
+			System.out.println("Performing range query...");
+			List<Point> nearestNeighbors = pivotIndex.rangeQuery(points, pivots, queryPoint, 
+					distanceMap, range);
+			long rangeQueryTime = System.currentTimeMillis();
+			System.out.println("Time taken to perform range query: " + (rangeQueryTime - pivotMapTime) + " milliseconds." );
+			System.out.println("Nearest neighbors: ");
+			for(Point neighbor: nearestNeighbors){
+				System.out.println("Neighbor: " + neighbor.getX() + ", " + neighbor.getY() + 
+						".  Distance from query point: " + PivotUtilities.getDistance(queryPoint, neighbor) +
+						".");
+				if(nearestNeighbors.indexOf(neighbor) > 9){
+					break;
+				}
 			}
+		} 
+		//Perform kNN query
+		else if(kNNQuery){
+			System.out.println("Performing kNN query...");
+			List<Point> kNN = pivotIndex.kNNQuery(points, pivots, queryPoint, distanceMap, k);
+			long kNNQueryTime = System.currentTimeMillis();
+			System.out.println("Time taken to perform kNN query: " + (kNNQueryTime - pivotMapTime) + " milliseconds." );
 		}
 	}
 
@@ -127,7 +136,7 @@ public class PivotTester {
 		long endTime = System.currentTimeMillis();
 		System.out.println("Time taken to populate dataset: " + (endTime - startTime) + " milliseconds.");
 		System.out.println("Dataset includes " + walkingDeadPoints.size() + " distinct observations");
-		runTest(walkingDeadPoints, pivotIndex);
+		runTest(walkingDeadPoints, pivotIndex, false, true, 250.0, 15);
 
 	}
 

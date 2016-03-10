@@ -14,4 +14,7 @@ public interface IPivotIndex {
 	
 	public List<Point> rangeQuery(List<Point> points, List<Pivot> pivots, Point queryPoint, Map<Double, 
 			Pivot> distanceMap, double range);
+	
+	public List<Point> kNNQuery(List<Point> points, List<Pivot> pivots, Point queryPoint, Map<Double, 
+			Pivot> distanceMap, int k);
 }

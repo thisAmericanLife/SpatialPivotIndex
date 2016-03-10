@@ -20,7 +20,7 @@ import usace.army.mil.erdc.pivots.models.Point;
 
 public class DistributedDistanceMapper {
 	public static class TokenizerMapper
-	extends Mapper<Object, Text, Point, DoubleWritable>{
+	extends Mapper<Point, Point, Text, DoubleWritable>{
 		
 		private final static IntWritable one = new IntWritable(1);
 		private Text word = new Text();
@@ -35,14 +35,13 @@ public class DistributedDistanceMapper {
 			}
 		}*/
 		
-		public void map(Object key, List<Point> points, Context context){
-			try{
-				for(Point candidatePoint : points){
-					context.write(point, new DoubleWritable(PivotUtilities.getDistance(point, candidatePoint)));
-				}
+		public void map(Point key, Point value, Context context){
+			/*try{
+				context.write(point, new DoubleWritable(PivotUtilities.getDistance(key, value)));
+				
 			}catch(IOException | InterruptedException e){
 				
-			}
+			}*/
 		}
 	}
 
