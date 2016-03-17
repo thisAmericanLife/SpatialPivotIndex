@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
-import usace.army.mil.erdc.pivots.models.IPivotIndex;
+import usace.army.mil.erdc.pivots.models.IIndexingScheme;
 import usace.army.mil.erdc.pivots.models.IPoint;
 import usace.army.mil.erdc.pivots.models.Pivot;
 import usace.army.mil.erdc.pivots.models.PivotIndexFactory;
@@ -65,7 +65,7 @@ public class PivotTester {
 			return points;
 		}
 	
-	private static void runTest(List<Point> points, IPivotIndex pivotIndex, boolean rangeQuery, boolean kNNQuery, double range, int k){
+	private static void runTest(List<Point> points, IIndexingScheme pivotIndex, boolean rangeQuery, boolean kNNQuery, double range, int k){
 		
 		//Select 100 points at random from the newly create points to be pivots
 		//List<Pivot> pivots = choosePivotsRandomly(points);
@@ -74,7 +74,7 @@ public class PivotTester {
 		
 		//Select pivots via Sparse Spatial Indexing
 		System.out.println("Selecting pivots.");
-		List<Pivot> pivots = pivotIndex.choosePivotsSparseSpatialIndex(points, true);
+		List<Pivot> pivots = (List<Pivot>) pivotIndex.choosePivotsSparseSpatialIndex(points, true);
 		long pivotSelectionTime = System.currentTimeMillis();
 		System.out.println("Time taken to select pivots: " + (pivotSelectionTime - startTime)  + " milliseconds." );
 		//Populate pivot information
@@ -118,25 +118,26 @@ public class PivotTester {
 
 	private static void runPivotTest(){
 		PivotIndexFactory indexFactory = new PivotIndexFactory();
-		IPivotIndex pivotIndex = indexFactory.getIndex(IPivotIndex.PivotIndexType.SINGLE_NODE);
+		IIndexingScheme pivotIndex = indexFactory.getIndex(IIndexingScheme.PivotIndexType.SINGLE_NODE);
 		//Randomly populate points from 0 - 1000
 		//List<Point> points = PivotIndex.populatePointsRandomly();
 		//System.out.println("Starting pivot test on random points....");
 		//runTest(points, pivotIndex);
 		//Create points from file, California Road Network's Nodes
 		//http://www.cs.fsu.edu/~lifeifei/SpatialDataset.htm
-		
-		//List<Point> californiaPoints = populatePointsFromCaliforniaRoadsDataset();
-
-		//System.out.println("Running test on points from California Roads...");
-		//runTest(californiaPoints, pivotIndex);
 		long startTime = System.currentTimeMillis();
-		
+		List<Point> californiaPoints = populatePointsFromCaliforniaRoadsDataset();
+		long endTime = System.currentTimeMillis();
+		System.out.println("Running test on points from California Roads...");
+		System.out.println("Dataset includes " + californiaPoints.size() + " distinct observations");
+		//runTest(californiaPoints, pivotIndex, false, true, 250.0, 15);
+		runTest(californiaPoints, pivotIndex, false, true, 250.0, 15);
+		/*long startTime = System.currentTimeMillis();
 		List<Point> walkingDeadPoints = populatePointsFromWalkingDeadDataset();
 		long endTime = System.currentTimeMillis();
 		System.out.println("Time taken to populate dataset: " + (endTime - startTime) + " milliseconds.");
 		System.out.println("Dataset includes " + walkingDeadPoints.size() + " distinct observations");
-		runTest(walkingDeadPoints, pivotIndex, false, true, 250.0, 15);
+		runTest(walkingDeadPoints, pivotIndex, true, false, 250.0, 15);*/
 
 	}
 

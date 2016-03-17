@@ -1,6 +1,7 @@
 package usace.army.mil.erdc.pivots.accumulo;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -10,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Map.Entry;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.Properties;
 
@@ -21,6 +23,7 @@ import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.client.MutationsRejectedException;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
+import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.security.ColumnVisibility;
@@ -32,7 +35,7 @@ import com.google.gson.Gson;
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
 import usace.army.mil.erdc.pivots.PivotIndex;
 import usace.army.mil.erdc.pivots.PivotTester;
-import usace.army.mil.erdc.pivots.models.IPivotIndex;
+import usace.army.mil.erdc.pivots.models.IIndexingScheme;
 import usace.army.mil.erdc.pivots.models.IPoint;
 import usace.army.mil.erdc.pivots.models.Pivot;
 import usace.army.mil.erdc.pivots.models.PivotIndexFactory;
@@ -51,46 +54,124 @@ public class AccumuloPivotTester extends PivotTester {
 	private static BatchWriterOpts bwOpts = null;
 	private static BatchWriterConfig bwConfig = null;
 
-	private static Point selectPointFromListRandomly(List<Point> points){
+	private static Point selectPointFromListRandomly(Scanner points, int datasetSize){
 		Random random = new Random();
-		return points.get(random.nextInt(10000));
+		Scanner randomPoint = AccumuloConnectionManager.queryAccumulo("points","point_" + random.nextInt(datasetSize), "PIVOT", "POJO");
+		Point point = null;
+		for(Entry<Key,Value> entrySet : randomPoint){
+			point = gson.fromJson(entrySet.getValue().toString(), Point.class);
+		}
+		return point;
 	}
 	
-	private String getFileName(String propertyFileName){
+	private static String getValueFromConfigFile(String type) throws FileNotFoundException{
 		InputStream inputStream;
 		Properties prop = new Properties();
-		String propFileName = "config.properties";
-
-		inputStream = getClass().getClassLoader().getResourceAsStream(propFileName);
+		String propFileName = "/home/hduser/pivots.properties";
+		inputStream = new FileInputStream(propFileName);
+		
 		
 		if (inputStream != null) {
 			try {
+				
 				prop.load(inputStream);
+				if(type.equals("dataset")){
+					return prop.getProperty("dataset");
+				} else{
+					return prop.getProperty("range");
+				}
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-				return prop.getProperty("dataset");
+				
 			}
 		} else {
 			throw new FileNotFoundException("property file '" + propFileName + "' not found in the classpath");
+			
 		}
-
-		
-
-		// get the property value and print it out
-		String user = prop.getProperty("user");
+		System.exit(0);
 
 		return null;
+	}
+	
+	private static BufferedReader getBufferedReader(String filename){
+		BufferedReader br = null;
+		try {
+			br = new BufferedReader(new FileReader(filename));
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return br;
+	}
+	
+	private static Scanner populateAccumuloFromDisk(String filename){
+		PointFactory pointFactory = new PointFactory();
+		List<Mutation> mutations = new ArrayList<Mutation>();
+		BufferedReader br = getBufferedReader(filename);
+		boolean isWalkingDeadData = false;
+		if(! filename.substring(filename.length() -4).equals(".tsv")){
+			isWalkingDeadData = true;
+		}
+		String line;
+		int i = 0;
+		int batchWriterIndex = 0;
+		try {
+			while((line = br.readLine()) != null){
+				Point point = (Point)pointFactory.getPoint(IPoint.PointType.POINT);
+				if(isWalkingDeadData){
+					point.setX(Double.parseDouble(Arrays.asList(line.split(" ")).get(2)));
+					point.setY(Double.parseDouble(Arrays.asList(line.split(" ")).get(1)));
+					point.setUID(String.valueOf("point_" + i));
+					mutations.add(AccumuloConnectionManager.getMutation(point.getUID(), "POINT", "POJO", gson.toJson(point, Point.class)));
+					//Write to Accumulo
+				} else {
+					String [] delimitedString = line.split("\t");
+					point.setX(Double.parseDouble(delimitedString[6]));
+					point.setY(Double.parseDouble(delimitedString[5]));
+					point.setUID(String.valueOf("point_" + i));
+					mutations.add(AccumuloConnectionManager.getMutation(point.getUID(), "POINT", "POJO", gson.toJson(point, Point.class)));
+					//Write to Accumulo
+				}
+				i++;
+				batchWriterIndex++;
+				//Flush every 500 values
+				if(batchWriterIndex > 499){
+					AccumuloConnectionManager.writeMutations(mutations, bwOpts, bwConfig);
+					mutations.clear();
+					batchWriterIndex = 0;
+				}
+			}
+			mutations.add(AccumuloConnectionManager.getMutation("!!!POINT_COUNT", "DATASET", "COUNT", String.valueOf(i+ 1)));
+			AccumuloConnectionManager.writeMutations(mutations,  bwOpts, bwConfig);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
 	}
 
 	private static List<Point> populatePointsFromDisk(String filename){
 		List<Point> points = new ArrayList<Point>();
-
+		PointFactory pointFactory = new PointFactory();
 		try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
 			String line;
+			int i = 0;
 			while ((line = br.readLine()) != null) {
-				points.add(new Point(Double.parseDouble(Arrays.asList(line.split(" ")).get(1)),
-						Double.parseDouble(Arrays.asList(line.split(" ")).get(2))));
+				if(! filename.substring(filename.length() -4).equals(".tsv")){
+					Point point = (Point)pointFactory.getPoint(IPoint.PointType.POINT);
+					point.setX(Double.parseDouble(Arrays.asList(line.split(" ")).get(2)));
+					point.setY(Double.parseDouble(Arrays.asList(line.split(" ")).get(1)));
+					point.setUID(String.valueOf(i));
+					points.add(point);
+				} else{
+					String [] delimitedString = line.split("\t");
+					Point point = (Point)pointFactory.getPoint(IPoint.PointType.POINT);
+					point.setX(Double.parseDouble(delimitedString[6]));
+					point.setY(Double.parseDouble(delimitedString[5]));
+					point.setUID(String.valueOf(i));
+					points.add((Point)point);
+				}
 
 			}
 		}catch (IOException ex) {
@@ -128,7 +209,7 @@ public class AccumuloPivotTester extends PivotTester {
 		AccumuloConnectionManager.writeMutations(mutations, bwOpts, bwConfig);
 	}
 
-	private static void init(String [] args){
+	private static void init(String [] args) throws FileNotFoundException{
 		opts = new ClientOnRequiredTable();
 		bwOpts = new BatchWriterOpts();
 		bwConfig = bwOpts.getBatchWriterConfig();
@@ -140,26 +221,24 @@ public class AccumuloPivotTester extends PivotTester {
 		connectionManager.verifyTableExistence(opts.getTableName());
 
 		PivotIndexFactory indexFactory = new PivotIndexFactory();
-		IPivotIndex index = indexFactory.getIndex(IPivotIndex.PivotIndexType.ACCUMULO);
-		List<Point> points = populatePointsFromDisk(args[10]);
-		//Get points
-		populatePointsInAccumulo(points);
+		IIndexingScheme index = indexFactory.getIndex(IIndexingScheme.PivotIndexType.ACCUMULO);
+		System.out.println("Populating dataset...");
+		Scanner points = populateAccumuloFromDisk(getValueFromConfigFile("dataset"));
 		//Calculate pivots
 		System.out.println("Selecting pivots.");
 		long startTime = System.currentTimeMillis();
-		List<Pivot> pivots = index.choosePivotsSparseSpatialIndex(points, true);
+		((AccumuloPivotIndex)index).choosePivotsSparseSpatialIndex(points, bwConfig, true);
 		long pivotSelectionTime = System.currentTimeMillis();
 		System.out.println("Time take to select pivots: " + (pivotSelectionTime - startTime));
-		//Get map vaules
+		
+		//Get map values
 		System.out.println("Mapping pivots...");
-		pivots = index.populatePivotMapValues(pivots, points);
+		Scanner pivots =  AccumuloConnectionManager.queryAccumulo("points", "PIVOT", "POJO");
+		((AccumuloPivotIndex)index).populatePivotMapValues(pivots, points, bwConfig);
 		long pivotMapTime = System.currentTimeMillis();
-		//Write pivot values to accumulo
-		Scanner pointScanner = AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
-		((AccumuloPivotIndex)index).writePivotsToAccumulo(pivots, pointScanner, bwConfig);
 
 		//Get randomly selected point from newly created points
-		Point queryPoint = selectPointFromListRandomly(points);
+		Point queryPoint = selectPointFromListRandomly(points, ((AccumuloPivotIndex)index).getDatasetSize());
 		System.out.println("Query point: " + queryPoint.getX() + ", " + queryPoint.getY() + ".");
 		//Get distances map
 		Map<Double, Pivot> distanceMap = PivotIndex.getDistanceMap(points, pivots, queryPoint);
@@ -167,7 +246,8 @@ public class AccumuloPivotTester extends PivotTester {
 		Scanner pivotScanner =  AccumuloConnectionManager.queryAccumulo("points", "PIVOT", "POJO");
 		System.out.println("Performing range query...");
 		long rangeQueryBeforeTime = System.currentTimeMillis();
-		List<Point> neighbors = ((AccumuloPivotIndex)index).rangeQueryAccumulo(points, pivotScanner, queryPoint, distanceMap, Integer.parseInt(args[11]));
+		List<Point> neighbors = ((AccumuloPivotIndex)index).rangeQueryAccumulo(pointScanner, pivotScanner, queryPoint, distanceMap, 
+				Integer.parseInt(getValueFromConfigFile("range")));
 		long rangeQueryAfterTime = System.currentTimeMillis();
 		System.out.println("Time taken to perform range query: " + (rangeQueryAfterTime - rangeQueryBeforeTime) + " milliseconds." );
 		for(Point neighbor: neighbors){
@@ -181,13 +261,18 @@ public class AccumuloPivotTester extends PivotTester {
 	}
 
 	public static void main(String [] args){
-		if(args.length != 12){
+		if(args.length != 10){
 			System.out.println("Usage: bin/accumulo jar lib/Pivots-0.0.1-SNAPSHOT.jar "
 					+ "usace.army.mil.erdc.pivots.accumulo.AccumuloPivotTester -t <tablename> -i <instance> -u <user> -p <password "
-					+ "--keepers <zookeeper host:port> <filename> <range>");
+					+ "--keepers <zookeeper host:port>");
 			System.exit(0);
 		} else{
-			init(args);
+			try {
+				init(args);
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 	}
 

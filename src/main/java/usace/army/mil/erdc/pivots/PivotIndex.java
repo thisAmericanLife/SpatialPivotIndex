@@ -23,13 +23,13 @@ import com.vividsolutions.jts.geom.GeometryFactory;
 
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
 import usace.army.mil.erdc.pivots.models.CandidatePoint;
-import usace.army.mil.erdc.pivots.models.IPivotIndex;
+import usace.army.mil.erdc.pivots.models.IIndexingScheme;
 import usace.army.mil.erdc.pivots.models.IPoint;
 import usace.army.mil.erdc.pivots.models.Pivot;
 import usace.army.mil.erdc.pivots.models.Point;
 import usace.army.mil.erdc.pivots.models.PointFactory;
 
-public class PivotIndex implements IPivotIndex {
+public class PivotIndex implements IIndexingScheme {
 	//TODO: Grid pivots
 	//		Add check for if query point is pivot
 	//		Add OMNI check for intrinsic dimensionality
@@ -227,6 +227,8 @@ public class PivotIndex implements IPivotIndex {
 
 		//Add first point in the list
 		//TODO: add interface
+		Pivot firstPivot = (Pivot)pointFactory.getPoint(IPoint.PointType.PIVOT, points.get(0));
+		firstPivot.setUID("0");
 		pivots.add(new Pivot(points.get(0)));
 		for(int i = 1; i < points.size(); i++){
 			Point point = points.get(i);
@@ -238,7 +240,9 @@ public class PivotIndex implements IPivotIndex {
 				}
 			}
 			if(satisfiesPivotCriteria){
-				pivots.add((Pivot)pointFactory.getPoint(IPoint.PointType.PIVOT, point)); 
+				Pivot pivot = (Pivot)pointFactory.getPoint(IPoint.PointType.PIVOT, point);
+				pivot.setUID(String.valueOf(i));
+				pivots.add(pivot); 
 			}
 		}
 		return pivots;

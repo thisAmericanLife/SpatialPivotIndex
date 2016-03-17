@@ -16,7 +16,7 @@ import usace.army.mil.erdc.pivots.models.oReilly.ConvexHullScan;
  * which can be used to compare two elements. This class was designed to let us
  * investigate the ability to use {@link QuickSort} within {@link ConvexHullScan}
  * <p>
- * Note that {@link IPivotIndex} was mistakenly specified to take an array of {@link Comparable}
+ * Note that {@link IIndexingScheme} was mistakenly specified to take an array of {@link Comparable}
  * so we couldn't use this interface. 
  * 
  * @param E   base element for the set.

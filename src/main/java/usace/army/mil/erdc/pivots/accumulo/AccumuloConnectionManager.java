@@ -29,7 +29,7 @@ public class AccumuloConnectionManager {
 	public AccumuloConnectionManager(ClientOnRequiredTable opts){
 		AccumuloConnectionManager.opts = opts;
 	}
-	
+
 	public void verifyTableExistence(String tableName){
 		if(!connector.tableOperations().exists(tableName))
 		{
@@ -65,6 +65,28 @@ public class AccumuloConnectionManager {
 	 * @param columnQualifier
 	 * @return
 	 */
+	public static Scanner queryAccumulo(String tableName, Text prefix,
+			String columnFamily, String columnQualifier){
+		Scanner scan = null;
+		try {
+			scan = connector.createScanner(tableName, new Authorizations());
+			scan.setRange(Range.prefix(prefix));
+			scan.fetchColumn(new Text(columnFamily), new Text(columnQualifier));
+		} catch (TableNotFoundException e) {
+			e.printStackTrace();
+		}
+		return scan;
+	}
+	
+	/**
+	 * Returns scanner object for a given query criteria, and allows calling function to iterate
+	 * over the results accordingly.
+	 * @param tableName
+	 * @param columnRange
+	 * @param columnFamily
+	 * @param columnQualifier
+	 * @return
+	 */
 	public static Scanner queryAccumulo(String tableName, String columnRange,
 			String columnFamily, String columnQualifier){
 		Scanner scan = null;
@@ -77,7 +99,7 @@ public class AccumuloConnectionManager {
 		}
 		return scan;
 	}
-	
+
 	/**
 	 * Returns scanner object for a given query criteria, and allows calling function to iterate
 	 * over the results accordingly- overloaded to omit columnRange;
@@ -98,7 +120,7 @@ public class AccumuloConnectionManager {
 		}
 		return scan;
 	}
-	
+
 	/**
 	 * Returns mutation objects to be appended to BatchWriter.
 	 * @param rowID
@@ -119,6 +141,24 @@ public class AccumuloConnectionManager {
 	}
 
 
+
+	//Takes list of Mutations as input, adds them to memory 
+	//      efficient batch writer from table/instance configurations
+	//      provided in main(), then wrties to Accumulo
+	public static void writeMutations(List<Mutation> mutations, BatchWriterOpts bwOpts, BatchWriterConfig bwConfig){
+		try{
+			BatchWriter writer =
+					connector.createBatchWriter(opts.getTableName(), 
+							bwConfig);
+			for(Mutation mutation : mutations){
+				writer.addMutation(mutation);
+			}
+			writer.close(); //This performs the flush and actual write to HDFS
+		} catch (MutationsRejectedException | TableNotFoundException ex){
+			ex.printStackTrace();
+		}
+	}
+
 	//Takes list of Mutations as input, adds them to memory 
 	//      efficient batch writer from table/instance configurations
 	//      provided in main(), then wrties to Accumulo
@@ -136,22 +176,22 @@ public class AccumuloConnectionManager {
 		}
 	}
 	//Takes list of Mutations as input, adds them to memory 
-		//      efficient batch writer from table/instance configurations
-		//      provided in main(), then wrties to Accumulo
-		public static void writeMutations(List<Mutation> mutations, BatchWriterOpts bwOpts){
-			try{
-				BatchWriter writer =
-						connector.createBatchWriter(opts.getTableName(), 
-								bwOpts.getBatchWriterConfig());
-				for(Mutation mutation : mutations){
-					writer.addMutation(mutation);
-				}
-				writer.close(); //This performs the flush and actual write to HDFS
-			} catch (MutationsRejectedException | TableNotFoundException ex){
-				ex.printStackTrace();
+	//      efficient batch writer from table/instance configurations
+	//      provided in main(), then wrties to Accumulo
+	public static void writeMutations(List<Mutation> mutations, BatchWriterOpts bwOpts){
+		try{
+			BatchWriter writer =
+					connector.createBatchWriter(opts.getTableName(), 
+							bwOpts.getBatchWriterConfig());
+			for(Mutation mutation : mutations){
+				writer.addMutation(mutation);
 			}
+			writer.close(); //This performs the flush and actual write to HDFS
+		} catch (MutationsRejectedException | TableNotFoundException ex){
+			ex.printStackTrace();
 		}
-	
+	}
+
 	//Getters and setters
 	public Connector getConnector() {
 		return connector;

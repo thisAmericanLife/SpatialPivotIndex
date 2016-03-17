@@ -2,7 +2,7 @@
 /home/ktyler/Documents/strider/Pivots/src/main/java/usace/army/mil/erdc/pivots/PivotTester.java
 /home/ktyler/Documents/strider/Pivots/src/main/java/usace/army/mil/erdc/pivots/PivotIndex.java
 /home/ktyler/Documents/strider/Pivots/src/main/java/usace/army/mil/erdc/pivots/models/PointFactory.java
-/home/ktyler/Documents/strider/Pivots/src/main/java/usace/army/mil/erdc/pivots/models/IPivotIndex.java
+/home/ktyler/Documents/strider/Pivots/src/main/java/usace/army/mil/erdc/pivots/models/IIndexingScheme.java
 /home/ktyler/Documents/strider/Pivots/src/main/java/hadoop/DistributedPivotTester.java
 /home/ktyler/Documents/strider/Pivots/src/main/java/usace/army/mil/erdc/pivots/models/oReilly/IConvexHull.java
 /home/ktyler/Documents/strider/Pivots/src/main/java/usace/army/mil/erdc/pivots/accumulo/AccumuloPivotTester.java

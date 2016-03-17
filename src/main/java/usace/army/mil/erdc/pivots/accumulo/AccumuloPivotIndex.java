@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -19,21 +20,29 @@ import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.data.Value;
+import org.apache.hadoop.io.Text;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
+import com.vividsolutions.jts.algorithm.ConvexHull;
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.GeometryFactory;
 
 import flexjson.JSONDeserializer;
+import flexjson.JSONSerializer;
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
 import usace.army.mil.erdc.pivots.PivotIndex;
 import usace.army.mil.erdc.pivots.models.CandidatePoint;
-import usace.army.mil.erdc.pivots.models.IPivotIndex;
+import usace.army.mil.erdc.pivots.models.IIndexingScheme;
 import usace.army.mil.erdc.pivots.models.IPoint;
 import usace.army.mil.erdc.pivots.models.Pivot;
 import usace.army.mil.erdc.pivots.models.Point;
+import usace.army.mil.erdc.pivots.models.PointFactory;
 
-public class AccumuloPivotIndex extends PivotIndex implements IPivotIndex {
+public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 	final private static Gson gson = new Gson();
 	private BatchWriterOpts bwOpts;
 	private Scanner pointScanner;
@@ -48,7 +57,37 @@ public class AccumuloPivotIndex extends PivotIndex implements IPivotIndex {
 
 	public static Map<Double, Pivot> getDistanceMap(Scanner pivots, Point queryPoint){
 		Map<Double, Pivot> sortedDistances = new TreeMap<Double, Pivot>();
+		double closest = Double.MAX_VALUE;
+		String pivotKey = "";
+		Map<Point, Double> pivotDistanceMap = null;
+		
+		Scanner mapScanner = AccumuloConnectionManager.queryAccumulo("points", "PIVOT", "MAP");
+		for(Entry<Key,Value> mapEntry : mapScanner) {
+			//Use this to determine UID of whichever pivot is the closest
+			//Get each pivot, get distance map, get the distance between the pivot and query point
+			//		make a Map<Double,Pivot> of these values, then return
+			
+			
+			Map<Point, Double> distanceMap = gson.fromJson(mapEntry.getValue().toString(), 
+					new TypeToken<Map<Double, Pivot>>() { }.getType());
+			if(distanceMap.get(queryPoint) < closest){
+				closest = distanceMap.get(queryPoint);
+				pivotKey = mapEntry.getKey().toString(); //Use this to query accumulo for string
+			}
+			
+		}
+		Scanner pivotScanner = AccumuloConnectionManager.queryAccumulo(pivotKey, "points", "PIVOT", "MAP");
+		for(Entry<Key,Value> mapEntry : pivotScanner) {
+			Pivot pivot = gson.fromJson(mapEntry.getValue().toString(), Pivot.class);
+			pivot.setPivotMap(pivotDistanceMap);
+		}
+		
+		
+				
 		for(Entry<Key,Value> pivotEntry : pivots) {
+			
+			
+			
 			File file = new File("/tmp/jsonBreaker.txt");
 
 			/* This logic will make sure that the file 
@@ -76,7 +115,8 @@ public class AccumuloPivotIndex extends PivotIndex implements IPivotIndex {
 			//System.out.println("Pivot Entry: " + pivotEntry.getValue().toString());
 			System.out.println("Pivot Key: " + pivotEntry.getKey().toString());
 			Pivot pivot = new JSONDeserializer<Pivot>().deserialize( pivotEntry.getValue().toString() );
-
+			System.out.println("Pivot x: " + pivot.getX());
+			System.out.println("Pivot y: " + pivot.getY());
 			/*Pivot pivot = 
 					gson.fromJson(pivotEntry.getValue().toString(), Pivot.class);*/
 			sortedDistances.put(pivot.getPivotMap().get(queryPoint), pivot);
@@ -85,22 +125,61 @@ public class AccumuloPivotIndex extends PivotIndex implements IPivotIndex {
 		return sortedDistances;
 	}
 
-	private Pivot getClosestPivotAccumulo(Scanner points, Scanner pivots, Point candidatePoint, Map<Double, Pivot> distanceMap){ 
-		IPoint closestPivot = pointFactory.getPoint(IPoint.PointType.PIVOT);
-		//Map<Double, Pivot> distanceMap = getDistanceMap(pivots, candidatePoint);
+	private Pivot getClosestPivotAccumulo(Scanner points, Scanner pivots, Point candidatePoint){ 
+		/*IPoint closestPivot = pointFactory.getPoint(IPoint.PointType.PIVOT);
+		Map<Double, Pivot> distanceMap = getDistanceMap(pivots, candidatePoint);
 		if(distanceMap.values().iterator().hasNext()){
 			closestPivot = distanceMap.values().iterator().next();
 		}
-		return (Pivot)closestPivot;
+		return (Pivot)closestPivot; */
+		Map<Double, Pivot> sortedDistances = new TreeMap<Double, Pivot>();
+		double closest = Double.MAX_VALUE;
+		String pivotKey = "";
+		Map<Point, Double> pivotDistanceMap = null;
+		
+		Scanner mapScanner = AccumuloConnectionManager.queryAccumulo("points", "PIVOT", "MAP");
+		for(Entry<Key,Value> mapEntry : mapScanner) {
+			//Use this to determine UID of whichever pivot is the closest
+			//Get each pivot, get distance map, get the distance between the pivot and query point
+			//		make a Map<Double,Pivot> of these values, then return
+			
+			
+			Map<Point, Double> distanceMap = gson.fromJson(mapEntry.getValue().toString(), 
+					new TypeToken<Map<Double, Pivot>>() { }.getType());
+			if(distanceMap.get(candidatePoint) < closest){
+				closest = distanceMap.get(candidatePoint);
+				pivotKey = mapEntry.getKey().toString(); //Use this to query accumulo for string
+			}
+			
+		}
+		Scanner pivotScanner = AccumuloConnectionManager.queryAccumulo(pivotKey, "points", "PIVOT", "MAP");
+		Pivot pivot = null;
+		for(Entry<Key,Value> mapEntry : pivotScanner) {
+			pivot = gson.fromJson(mapEntry.getValue().toString(), Pivot.class);
+			pivot.setPivotMap(pivotDistanceMap);
+			break;
+		}
+		return pivot;
 	}
 
-	private Pivot getClosestPivotAccumulo(List<Point> points, Scanner pivots, Point candidatePoint, Map<Double, Pivot> distanceMap){ 
-		IPoint closestPivot = pointFactory.getPoint(IPoint.PointType.PIVOT);
-		//Map<Double, Pivot> distanceMap = getDistanceMap(pivots, candidatePoint);
-		if(distanceMap.values().iterator().hasNext()){
-			closestPivot = distanceMap.values().iterator().next();
+	private Pivot getClosestPivotAccumulo(Scanner pivots, Point queryPoint){ 
+		//Loop through each pivot and perform distance calculation
+		//It seems intuitive to get the pivot map for each pivot, since this is precomputed
+		//	However, this is significantly higher storage complexity.  This stategy is 
+		//	designed with scalability in mind. (i.e.: it would likely be faster to perform 
+		//	distance computations on each pivot (since the pivot list is small) than to 
+		//	retrieve and iterate through each map list)
+		Pivot closestPivot = null;
+		double shortestDistance = Double.MAX_VALUE;
+		for(Entry<Key,Value> mapEntry : pivots){
+			Pivot pivot = gson.fromJson(mapEntry.getValue().toString(), Pivot.class);
+			double temporaryDistance = PivotUtilities.getDistance(pivot, queryPoint);
+			if(temporaryDistance < shortestDistance){
+				closestPivot = pivot;
+				shortestDistance = temporaryDistance;
+			}
 		}
-		return (Pivot)closestPivot;
+		return closestPivot;
 	}
 
 	//TODO: make into first MR-job
@@ -114,7 +193,7 @@ public class AccumuloPivotIndex extends PivotIndex implements IPivotIndex {
 				currentPoint.setX(Double.parseDouble(jsonObj.getString("x")));
 				currentPoint.setY(Double.parseDouble(jsonObj.getString("y")));
 
-				Pivot closestPivot = getClosestPivotAccumulo(points, pivots, currentPoint, distanceMap);
+				Pivot closestPivot = getClosestPivotAccumulo(points, currentPoint);
 				Map<Point, Double> pivotMap = closestPivot.getPivotMap();
 				double queryPointToPivotDist = pivotMap.get(queryPoint);
 				if(pivotMap.get(currentPoint) == null){
@@ -133,20 +212,41 @@ public class AccumuloPivotIndex extends PivotIndex implements IPivotIndex {
 		}
 		return candidatePoints;
 	}
-
-	private List<CandidatePoint> runPivotHeuristicAccumulo(List<Point> points, Scanner pivots, Point queryPoint, 
-			Map<Double, Pivot> distanceMap, double range){
-		List<CandidatePoint> candidatePoints = new ArrayList<CandidatePoint>();
-		for(Point currentPoint : points) {
-
-			Pivot closestPivot = getClosestPivotAccumulo(points, pivots, currentPoint, distanceMap);
-			Map<Point, Double> pivotMap = closestPivot.getPivotMap();
-			double queryPointToPivotDist = pivotMap.get(queryPoint);
-			if(pivotMap.get(currentPoint) == null){
-				System.out.println("Null...");
+	
+	//Helper method to retrieve map entry in constant time
+	//Map Entry is in format:
+	//	RowID : <PivotUID>_<EntryUID>
+	//	Column Family : MAP
+	//	Column Qualifier : <PointUID>
+	private double getPrecomputedDistanceFromAccumulo(Point point, Pivot pivot){
+		double distance = 0.0;
+		Scanner scanner = AccumuloConnectionManager.queryAccumulo("points", new Text(pivot.getUID()+"_"),
+				"MAP", point.getUID());
+		for(Entry<Key,Value> scannerEntry : scanner) {
+			PivotMapEntry mapEntry = gson.fromJson(scannerEntry.getValue().toString(), PivotMapEntry.class);
+			//Verify that we have the map entry for the correct point
+			if(mapEntry.getPointID().equals(point.getUID())){
+				distance = mapEntry.getDistance();
 			}
-			double currentPointToPivotDist = pivotMap.get(currentPoint) == null ? Double.MAX_VALUE : pivotMap.get(currentPoint);
+		}
+		return distance;
+	}
+
+	private Scanner runPivotHeuristicAccumulo(Scanner points, Scanner pivots,
+			Point queryPoint,  double range){
+		List<CandidatePoint> candidatePoints = new ArrayList<CandidatePoint>();
+		
+		for(Entry<Key,Value> pointEntry : points) {
+			Point currentPoint = gson.fromJson(pointEntry.getValue().toString(), Point.class);
+			Pivot closestPivot = getClosestPivotAccumulo(points,currentPoint);
+			
+			//Get the pre-computed distance between the current point and 
+			//	the pivot from Accumulo
+			double queryPointToPivotDist = getPrecomputedDistanceFromAccumulo(queryPoint, closestPivot);
+			
+			double currentPointToPivotDist = getPrecomputedDistanceFromAccumulo(currentPoint, closestPivot);
 			//Check for triangle inequality (d(x,z) ≤ d(x,y) + d(y,z))
+			//Do you want to write the candidate point back to accumulo or try and hold it in a list??
 			if(range >= queryPointToPivotDist + currentPointToPivotDist){
 				candidatePoints.add((CandidatePoint)pointFactory.getPoint(IPoint.PointType.CANDIDATE, currentPoint));
 			}
@@ -156,9 +256,8 @@ public class AccumuloPivotIndex extends PivotIndex implements IPivotIndex {
 		return candidatePoints;
 	}
 
-	public List<Point> rangeQueryAccumulo(Scanner points, Scanner pivots, Point queryPoint, Map<Double, 
-			Pivot> distanceMap, double range){
-		List<CandidatePoint> candidatePoints = runPivotHeuristicAccumulo(points, pivots, queryPoint, distanceMap, range);
+	public List<Point> rangeQueryAccumulo(Scanner points, Scanner pivots, Point queryPoint, double range){
+		Scanner candidatePoints = runPivotHeuristicAccumulo(points, pivots, queryPoint, range);
 		Map<CandidatePoint, Integer> sortedCandidates = new TreeMap<CandidatePoint, Integer>();
 		List<Point> neighbors = new ArrayList<Point>();
 		for(CandidatePoint candidate : candidatePoints){
@@ -173,63 +272,146 @@ public class AccumuloPivotIndex extends PivotIndex implements IPivotIndex {
 		return neighbors;
 	}
 	
-	public List<Point> rangeQueryAccumulo(List<Point> points, Scanner pivots, Point queryPoint, Map<Double, 
-			Pivot> distanceMap, double range){
-		List<CandidatePoint> candidatePoints = runPivotHeuristicAccumulo(points, pivots, queryPoint, distanceMap, range);
-		Map<CandidatePoint, Integer> sortedCandidates = new TreeMap<CandidatePoint, Integer>();
-		List<Point> neighbors = new ArrayList<Point>();
-		for(CandidatePoint candidate : candidatePoints){
-			if(! candidate.equals(queryPoint)){	
-				candidate.setDistanceToQueryPoint(PivotUtilities.getDistance(candidate, queryPoint));
-				sortedCandidates.put(candidate, 1);
-			}
-		}
-		for(Map.Entry<CandidatePoint, Integer> kvPair : sortedCandidates.entrySet()){
-			neighbors.add((Point) kvPair.getKey());
-		}
-		return neighbors;
-	}
-
-	private void writePivotsToAccumulo(Scanner pivots){
-		List<Mutation> mutations  = new ArrayList<Mutation>();
-		int index = 0;
-		pointScanner = AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
-		for(Entry<Key,Value> pivotEntry : pivots) {
-			Pivot pivot = (Pivot)pointFactory.getPoint(IPoint.PointType.PIVOT, 
-					gson.fromJson(pivotEntry.getValue().toString(), Point.class));
-			mutations.add(AccumuloConnectionManager.getMutation("pivot_" + pivot, 
-					"PIVOT", "POJO", gson.toJson(pivot, Point.class)));
-			for(Entry<Key,Value> pointEntry : pointScanner) {
-				Point point = (Pivot)pointFactory.getPoint(IPoint.PointType.PIVOT, 
-						gson.fromJson(pointEntry.getValue().toString(), Point.class));
-				PivotMapEntry pivotMapEntry = new PivotMapEntry(point.getUID(),
-						PivotUtilities.getDistance(pivot, point));
-				mutations.add(AccumuloConnectionManager.getMutation("pivot_" + pivot, 
-						"PIVOT", "DISTANCE_MAP_ENTRY", gson.toJson(pivotMapEntry, PivotMapEntry.class)));
-			}
-			index++;
-		}
-		AccumuloConnectionManager.writeMutations(mutations, bwOpts);
-	}
-
-	protected void writePivotsToAccumulo(List<Pivot> pivots, Scanner points, BatchWriterConfig bwConfig){
+	protected void writePivotsToAccumulo(List<Pivot> pivots, BatchWriterConfig bwConfig){
 		List<Mutation> mutations  = new ArrayList<Mutation>();
 		int index = 0;
 		pointScanner = AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
 		for(Pivot pivot : pivots) {
-			mutations.add(AccumuloConnectionManager.getMutation("pivot_" + index, 
-					"PIVOT", "POJO", gson.toJson(pivot, Pivot.class)));
-			/*for(Entry<Key,Value> pointEntry : points) {
-				Point point = (Point)pointFactory.getPoint(IPoint.PointType.POINT, 
-						gson.fromJson(pointEntry.getValue().toString(), Point.class));
-				PivotMapEntry pivotMapEntry = new PivotMapEntry(point.getUID(),
-						PivotUtilities.getDistance(pivot, point));
-				mutations.add(AccumuloConnectionManager.getMutation("pivot_" + pivot, 
-						"PIVOT", "DISTANCE_MAP_ENTRY", gson.toJson(pivotMapEntry, PivotMapEntry.class)));
-			}*/
+			/*mutations.add(AccumuloConnectionManager.getMutation("pivot_" + index, 
+					"PIVOT", "POJO", gson.toJson(pivot, Pivot.class)));*/
+			
+			mutations.add(AccumuloConnectionManager.getMutation("pivot_" + pivot.getUID(),
+					"PIVOT", "MAP", gson.toJson(pivot.getPivotMap())));
+			pivot.setPivotMap(null);
+			mutations.add(AccumuloConnectionManager.getMutation("pivot_" + pivot.getUID(), 
+					"PIVOT", "POJO",  gson.toJson(pivot, Pivot.class)));
+			
+			
 			index++;
 		}
 		AccumuloConnectionManager.writeMutations(mutations, bwOpts, bwConfig);
+	}
+
+	protected void writePivotsToAccumulo(List<Pivot> pivots, Scanner points, BatchWriterConfig bwConfig){
+		List<Mutation> mutations  = new ArrayList<Mutation>();
+		pointScanner = AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
+		for(Pivot pivot : pivots) {
+			/*mutations.add(AccumuloConnectionManager.getMutation("pivot_" + index, 
+					"PIVOT", "POJO", gson.toJson(pivot, Pivot.class)));*/
+			
+			mutations.add(AccumuloConnectionManager.getMutation("pivot_" + pivot.getUID(),
+					"PIVOT", "MAP", gson.toJson(pivot.getPivotMap())));
+			if(pivot.getPivotMap() != null) {
+				pivot.setPivotMap(null);
+			}
+			mutations.add(AccumuloConnectionManager.getMutation("pivot_" + pivot.getUID(), 
+					"PIVOT", "POJO",  gson.toJson(pivot, Pivot.class)));
+			
+		}
+		AccumuloConnectionManager.writeMutations(mutations, bwOpts, bwConfig);
+	}
+	
+	protected int getDatasetSize(){
+		int datasetSize = 0;
+		for(Entry<Key,Value> entrySet : 
+			AccumuloConnectionManager.queryAccumulo("points", "!!!POINT_COUNT", "POINT", "POJO")) {
+			datasetSize = Integer.parseInt(entrySet.getValue().toString());
+		}
+		return datasetSize;
+	}
+	
+	private List<Point> getConvexHullPoints(Scanner points){
+		//Convert to Array, as this works better with the convex hull computation
+		ConvexHull convexHull = new ConvexHull(PivotUtilities.convertPointListToCoordArray(points, getDatasetSize()), new GeometryFactory());
+		return PivotUtilities.convertCoordArrayToPointList(convexHull.getConvexHull().getCoordinates());
+	}
+	
+	public void populatePivotMapValues(Scanner pivots, Scanner points, BatchWriterConfig bwConfig){
+		List<Mutation> mutations = new ArrayList<Mutation>();
+		int entryCounter = 0;
+		int batchWriterIndex = 0;
+		for(Entry<Key,Value> pivotEntrySet : pivots){
+			Pivot pivot = gson.fromJson(pivotEntrySet.getValue().toString(), Pivot.class);
+			for(Entry<Key,Value> pointEntrySet : points){
+				Point point = gson.fromJson(pointEntrySet.getValue().toString(), Point.class);
+				PivotMapEntry entry = new PivotMapEntry("entry_" + entryCounter, pivot.getUID(), point.getUID(), 
+						PivotUtilities.getDistance(pivot, point));
+				mutations.add(AccumuloConnectionManager.getMutation(pivot.getUID() + "_" + entry.getUID(), "MAP",
+						point.getUID(), gson.toJson(point, Point.class)));
+				entryCounter++;
+				batchWriterIndex++;
+				//Flush every 500 values
+				if(batchWriterIndex > 499){
+					AccumuloConnectionManager.writeMutations(mutations, bwOpts, bwConfig);
+					mutations.clear();
+					batchWriterIndex = 0;
+				}
+			}
+		}
+	}
+	
+	public void choosePivotsSparseSpatialIndex(Scanner points, BatchWriterConfig bwConfig, boolean useConvexHull){
+		List<Pivot> pivots = new ArrayList<Pivot>();
+		Point randomPoint = null;
+		//Get maximum distance-- brute force for now :/
+		double maximumDistance = 0.0;
+		double alpha = 0.37;
+		//Loop through each point to point maximum distance between objects in collection
+		if(useConvexHull){
+			List<Point> boundaryPoints = getConvexHullPoints(points);
+			maximumDistance = PivotUtilities.searchForMaxDistanceInParallel(boundaryPoints);
+		} else{
+			PointFactory pointFactory = new PointFactory();
+			int i = 0;
+			double temporaryDistance = 0.0;
+			for(Entry<Key,Value> outerEntrySet : points){
+				Point outterPoint = gson.fromJson(outerEntrySet.getValue().toString(), Point.class);
+				for(Entry<Key,Value> innerEntrySet : points){
+					Point innerPoint = gson.fromJson(outerEntrySet.getValue().toString(), Point.class);
+					if(! innerPoint.equals(outterPoint)){
+						temporaryDistance = PivotUtilities.getDistance(outterPoint, innerPoint);
+						if(temporaryDistance > maximumDistance){
+							maximumDistance = temporaryDistance;
+							//Since we've already gone into this if, check if this should be our "randomly selected" point
+							if(i == 500){
+								randomPoint = innerPoint;
+							}
+						}
+					}
+				}
+				i++;
+			}
+		}
+		System.out.println("Maximum distance between any two points: " + maximumDistance);
+		//Loop through each point...again...to determine if each point candidate satisfies 
+		//	M = max { d ( x, y ) /x,y ∈ U }
+		//	M(α), where α is definied as a double between 0.35 and 0.4
+		//	Oscar Pedreira and Nieves R. Brisaboa, "Spatial Selection of Sparse Pivots for Similarity
+		//	Search in Metric Spaces"
+
+		//Add first point in the list
+		Pivot firstPivot = (Pivot)pointFactory.getPoint(IPoint.PointType.PIVOT, randomPoint);
+		firstPivot.setUID("pivot_0");
+		int id = 1;
+		pivots.add(new Pivot(firstPivot));
+		for(Entry<Key,Value> entrySet : points){
+			Point point = gson.fromJson(entrySet.getValue().toString(), Point.class);
+			boolean satisfiesPivotCriteria = true;
+			for(int j = 0; j < pivots.size(); j++){
+				if(! (PivotUtilities.getDistance(point, pivots.get(j)) >= (maximumDistance * alpha))){
+					//TODO: add interface
+					satisfiesPivotCriteria = false;
+				}
+			}
+			if(satisfiesPivotCriteria){
+				Pivot pivot = (Pivot)pointFactory.getPoint(IPoint.PointType.PIVOT, point);
+				pivot.setUID("pivot_"+ String.valueOf(id));
+				pivots.add(pivot); 
+				id++;
+			}
+		}
+		//Write Pivots 
+		writePivotsToAccumulo(pivots, bwConfig);
 	}
 
 	public void populatePointsRandomlyAccumulo(double max, double min){
@@ -246,23 +428,32 @@ public class AccumuloPivotIndex extends PivotIndex implements IPivotIndex {
 	}
 
 	private class PivotMapEntry{
+		private String UID;
+		private String pointID;
 		private String pivotID;
 		private double distance;
-		public PivotMapEntry(String pivotID, double distance){
+		public PivotMapEntry(String UID, String pivotID, String pointID, double distance){
 			this.pivotID = pivotID;
+			this.pointID = pointID;
 			this.distance = distance;
 		}
-		public String getPivotID() {
-			return pivotID;
+		public String getPointID() {
+			return pointID;
 		}
-		public void setPivotID(String pivotID) {
-			this.pivotID = pivotID;
+		public void setPointID(String pointID) {
+			this.pointID = pointID;
 		}
 		public double getDistance() {
 			return distance;
 		}
 		public void setDistance(double distance) {
 			this.distance = distance;
+		}
+		public String getUID() {
+			return UID;
+		}
+		public void setUID(String UID) {
+			this.UID = UID;
 		}
 
 	}

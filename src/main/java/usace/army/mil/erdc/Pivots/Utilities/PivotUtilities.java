@@ -2,11 +2,19 @@ package usace.army.mil.erdc.Pivots.Utilities;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map.Entry;
 
+import org.apache.accumulo.core.client.Scanner;
+import org.apache.accumulo.core.data.Key;
+import org.apache.accumulo.core.data.Value;
+
+import com.google.gson.Gson;
 import com.vividsolutions.jts.geom.Coordinate;
 
 import usace.army.mil.erdc.pivots.models.IPoint;
+import usace.army.mil.erdc.pivots.models.Pivot;
 import usace.army.mil.erdc.pivots.models.Point;
+import usace.army.mil.erdc.pivots.models.PointFactory;
 import usace.army.mil.erdc.pivots.models.oReilly.PartialHull;
 import usace.army.mil.erdc.pivots.models.oReilly.QuickSortExternal;
 
@@ -122,11 +130,29 @@ public class PivotUtilities {
 			return coordinates;
 		}
 		
+		//For Accumulo
+		public static Coordinate [] convertPointListToCoordArray(Scanner points, int datasetSize){
+			PointFactory pointFactory = new PointFactory();
+			Gson gson = new Gson();
+			Coordinate [] coordinates = new Coordinate[datasetSize];
+			int i = 0;
+			for(Entry<Key,Value> entrySet : points){
+				Point point = gson.fromJson(entrySet.getValue().toString(), Point.class);
+				coordinates[i] = new Coordinate(point.getX(), point.getY());
+				i++;
+			}
+			return coordinates;
+		}
+		
 		public static List<Point> convertCoordArrayToPointList(Coordinate [] coordinates){
 			List<Point> pointList = new ArrayList<Point>();
 			for(int i = 0; i < coordinates.length; i++){
 				pointList.add(new Point(coordinates[i].x, coordinates[i].y));
 			}
 			return pointList;
+		}
+		
+		public static double calculateGeometricMedian(Pivot pivot){
+			return 0.0;
 		}
 }
