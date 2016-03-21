@@ -232,9 +232,11 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 		return distance;
 	}
 
-	private Scanner runPivotHeuristicAccumulo(Scanner points, Scanner pivots,
-			Point queryPoint,  double range){
+	private void runPivotHeuristicAccumulo(Scanner points, Scanner pivots,
+			Point queryPoint,  double range, BatchWriterConfig bwConfig){
 		List<CandidatePoint> candidatePoints = new ArrayList<CandidatePoint>();
+		List<Mutation> mutations = new ArrayList<Mutation>();
+		int batchWriterIndex = 0;
 		
 		for(Entry<Key,Value> pointEntry : points) {
 			Point currentPoint = gson.fromJson(pointEntry.getValue().toString(), Point.class);
@@ -246,14 +248,20 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 			
 			double currentPointToPivotDist = getPrecomputedDistanceFromAccumulo(currentPoint, closestPivot);
 			//Check for triangle inequality (d(x,z) ≤ d(x,y) + d(y,z))
-			//Do you want to write the candidate point back to accumulo or try and hold it in a list??
 			if(range >= queryPointToPivotDist + currentPointToPivotDist){
-				candidatePoints.add((CandidatePoint)pointFactory.getPoint(IPoint.PointType.CANDIDATE, currentPoint));
+				//Write back to accumulo
+				//Later, get each point, convert to CandidatePoint if within range, add to sorted list
+				mutations.add(AccumuloConnectionManager.getMutation(point.getUID(), "POINT",
+						"ISCANDIDATE", "TRUE"));
+				batchWriterIndex++;
 			}
-
-
+			if(batchWriterIndex > 499){
+				AccumuloConnectionManager.writeMutations(mutations, bwOpts, bwConfig);
+				mutations.clear();
+				batchWriterIndex = 0;
+			}
 		}
-		return candidatePoints;
+		Scanner scanner = AccumuloConnectionManager.queryAccumulo("points", "ISCANDIDATE", "FLAG");
 	}
 
 	public List<Point> rangeQueryAccumulo(Scanner points, Scanner pivots, Point queryPoint, double range){
