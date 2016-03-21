@@ -6,7 +6,7 @@ public class Point implements IPoint {
 
 	private double x;
 	private double y;
-	private String UID;
+	protected String UID;
 	/** Numbers within this amount are considered to be the same. */
 	public static final double epsilon = 1E-9;
 	
@@ -15,6 +15,12 @@ public class Point implements IPoint {
 		this.x = x;
 		this.y = y;
 	}
+	//Constructor
+		public Point(double x, double y, String UID){
+			this.UID = UID;
+			this.x = x;
+			this.y = y;
+		}
 	
 	public Point(){}
 	

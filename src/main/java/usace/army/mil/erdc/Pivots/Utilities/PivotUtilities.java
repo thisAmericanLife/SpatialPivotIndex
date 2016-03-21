@@ -134,7 +134,7 @@ public class PivotUtilities {
 		public static Coordinate [] convertPointListToCoordArray(Scanner points, int datasetSize){
 			PointFactory pointFactory = new PointFactory();
 			Gson gson = new Gson();
-			Coordinate [] coordinates = new Coordinate[datasetSize];
+			Coordinate [] coordinates = new Coordinate[datasetSize- 1];
 			int i = 0;
 			for(Entry<Key,Value> entrySet : points){
 				Point point = gson.fromJson(entrySet.getValue().toString(), Point.class);

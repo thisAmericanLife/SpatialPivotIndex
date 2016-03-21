@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.HashMap;
 
 public class Pivot extends Point implements IPoint{
-
+	private String pivotID;
 	private Map<Point, Double> pivotMap;
 	public Pivot(double x, double y) {
 		super(x, y);
@@ -15,6 +15,11 @@ public class Pivot extends Point implements IPoint{
 		super(point.getX(), point.getY());
 		setPivotMap(new HashMap<Point, Double>());
 	}
+	public Pivot(Point point, String UID){
+		super(point.getX(), point.getY());
+		this.pivotID = UID;
+		setPivotMap(new HashMap<Point, Double>());
+	}
 	public Pivot() {
 		// TODO Auto-generated constructor stub
 	}
@@ -23,6 +28,12 @@ public class Pivot extends Point implements IPoint{
 	}
 	public void setPivotMap(Map<Point, Double> pivotList) {
 		this.pivotMap = pivotList;
+	}
+	public String getPivotID() {
+		return pivotID;
+	}
+	public void setPivotID(String pivotID) {
+		this.pivotID = pivotID;
 	}
 	
 }

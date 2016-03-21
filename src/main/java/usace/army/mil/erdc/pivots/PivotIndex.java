@@ -130,7 +130,9 @@ public class PivotIndex implements IIndexingScheme {
 		for(CandidatePoint candidate : candidatePoints){
 			if(! candidate.equals(queryPoint)){	
 				candidate.setDistanceToQueryPoint(PivotUtilities.getDistance(candidate, queryPoint));
-				sortedCandidates.put(candidate, 1);
+				if(candidate.getDistanceToQueryPoint() <= range){
+					sortedCandidates.put(candidate, 1);
+				}
 			}
 		}
 		for(Map.Entry<CandidatePoint, Integer> kvPair : sortedCandidates.entrySet()){

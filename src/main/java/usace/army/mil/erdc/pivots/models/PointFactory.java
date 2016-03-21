@@ -24,4 +24,15 @@ public class PointFactory {
 			return new Point();
 		}
 	}
+	
+	public IPoint getPoint(IPoint.PointType pointType, Point point, String UID){
+		switch(pointType){
+		case CANDIDATE:
+			return new CandidatePoint(point);
+		case PIVOT:
+			return new Pivot(point, UID);
+		default:
+			return new Point();
+		}
+	}
 }

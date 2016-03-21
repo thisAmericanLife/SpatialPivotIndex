@@ -30,7 +30,7 @@ public class AccumuloConnectionManager {
 		AccumuloConnectionManager.opts = opts;
 	}
 
-	public void verifyTableExistence(String tableName){
+	public static void verifyTableExistence(String tableName){
 		if(!connector.tableOperations().exists(tableName))
 		{
 			try {
@@ -159,22 +159,6 @@ public class AccumuloConnectionManager {
 		}
 	}
 
-	//Takes list of Mutations as input, adds them to memory 
-	//      efficient batch writer from table/instance configurations
-	//      provided in main(), then wrties to Accumulo
-	public static void writeMutations(List<Mutation> mutations, BatchWriterOpts bwOpts, BatchWriterConfig bwConfig){
-		try{
-			BatchWriter writer =
-					connector.createBatchWriter(opts.getTableName(), 
-							bwConfig);
-			for(Mutation mutation : mutations){
-				writer.addMutation(mutation);
-			}
-			writer.close(); //This performs the flush and actual write to HDFS
-		} catch (MutationsRejectedException | TableNotFoundException ex){
-			ex.printStackTrace();
-		}
-	}
 	//Takes list of Mutations as input, adds them to memory 
 	//      efficient batch writer from table/instance configurations
 	//      provided in main(), then wrties to Accumulo

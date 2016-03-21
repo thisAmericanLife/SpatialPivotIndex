@@ -56,7 +56,7 @@ public class AccumuloPivotTester extends PivotTester {
 
 	private static Point selectPointFromListRandomly(Scanner points, int datasetSize){
 		Random random = new Random();
-		Scanner randomPoint = AccumuloConnectionManager.queryAccumulo("points","point_" + random.nextInt(datasetSize), "PIVOT", "POJO");
+		Scanner randomPoint = AccumuloConnectionManager.queryAccumulo("points","point_" + random.nextInt(datasetSize), "POINT", "POJO");
 		Point point = null;
 		for(Entry<Key,Value> entrySet : randomPoint){
 			point = gson.fromJson(entrySet.getValue().toString(), Point.class);
@@ -240,21 +240,24 @@ public class AccumuloPivotTester extends PivotTester {
 		//Get randomly selected point from newly created points
 		Point queryPoint = selectPointFromListRandomly(points, ((AccumuloPivotIndex)index).getDatasetSize());
 		System.out.println("Query point: " + queryPoint.getX() + ", " + queryPoint.getY() + ".");
-		//Get distances map
-		Map<Double, Pivot> distanceMap = PivotIndex.getDistanceMap(points, pivots, queryPoint);
+
 		//Issue range query
 		Scanner pivotScanner =  AccumuloConnectionManager.queryAccumulo("points", "PIVOT", "POJO");
+		Scanner pointScanner =  AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
 		System.out.println("Performing range query...");
 		long rangeQueryBeforeTime = System.currentTimeMillis();
-		List<Point> neighbors = ((AccumuloPivotIndex)index).rangeQueryAccumulo(pointScanner, pivotScanner, queryPoint, distanceMap, 
-				Integer.parseInt(getValueFromConfigFile("range")));
+		Scanner neighbors = ((AccumuloPivotIndex)index).rangeQueryAccumulo(pointScanner, pivotScanner, queryPoint, 
+				Integer.parseInt(getValueFromConfigFile("range")), bwConfig);
 		long rangeQueryAfterTime = System.currentTimeMillis();
 		System.out.println("Time taken to perform range query: " + (rangeQueryAfterTime - rangeQueryBeforeTime) + " milliseconds." );
-		for(Point neighbor: neighbors){
+		int neighborCounter = 0;
+		for(Entry<Key,Value> neighborEntry : neighbors) {
+			Point neighbor = gson.fromJson(neighborEntry.getValue().toString(), Point.class);
 			System.out.println("Neighbor: " + neighbor.getX() + ", " + neighbor.getY() + 
 					".  Distance from query point: " + PivotUtilities.getDistance(queryPoint, neighbor) +
 					".");
-			if(neighbors.indexOf(neighbor) > 9){
+			neighborCounter++;
+			if(neighborCounter > 9){
 				break;
 			}
 		}
