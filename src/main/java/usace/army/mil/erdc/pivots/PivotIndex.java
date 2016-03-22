@@ -19,9 +19,13 @@ import org.apache.commons.math.stat.descriptive.rank.Median;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 import com.vividsolutions.jts.algorithm.ConvexHull;
+import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.geom.LinearRing;
+import com.vividsolutions.jts.geom.Polygon;
 
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
+import usace.army.mil.erdc.Pivots.models.Quadrant;
 import usace.army.mil.erdc.pivots.models.CandidatePoint;
 import usace.army.mil.erdc.pivots.models.IIndexingScheme;
 import usace.army.mil.erdc.pivots.models.IPoint;
@@ -36,6 +40,12 @@ public class PivotIndex implements IIndexingScheme {
 	//		Add convex hull to avoid n^2 index creation
 	
 	protected static PointFactory pointFactory;
+	private double minX;
+	private double minY;
+	private double maxX;
+	private double maxY;
+	private com.vividsolutions.jts.geom.Point centroid;
+	private Quadrant upperLeft, upperRight, lowerLeft, lowerRight;
 	
 	public PivotIndex(){
 		pointFactory = new PointFactory();
@@ -52,27 +62,9 @@ public class PivotIndex implements IIndexingScheme {
 		return Math.sqrt(k / (density * Math.PI));
 	}
 	
-	//TODO: Implement L1 Median, hacking for now
-	//Returns the median distance of a given set of points
-	//http://stackoverflow.com/questions/11955728/how-to-calculate-the-median-of-an-array
-	private static double getDensity(Pivot pivot){
-		// Get a DescriptiveStatistics instance
-		DescriptiveStatistics stats = new DescriptiveStatistics();
-		double [] distances = new double[pivot.getPivotMap().values().size()];
-		int i = 0;
-		for(double distance : pivot.getPivotMap().values()){
-			distances[i] = distance;
-			stats.addValue(distance);
-			i++;
-		}
-		Median m = new Median();
-		Arrays.sort(distances);
-		double med = m.evaluate(distances, 50.0);
-		System.out.println("Max: " + distances[0] + ", min: " + distances[distances.length - 1]);
-		System.out.println("Median: " + med);
-		System.out.println("True median: " + stats.getPercentile(50));
-		return stats.getGeometricMean();
-		
+	//Returns the density of the quadrant for which the point lies in
+	private static double getDensity(Point point){
+		return getQuadrant(point).getDensity();
 	}
 	
 	public List<Point> kNNQuery(List<Point> points, List<Pivot> pivots, Point queryPoint, Map<Double, 
@@ -80,8 +72,8 @@ public class PivotIndex implements IIndexingScheme {
 		List<Point> kNN = new ArrayList<Point>();
 		// Find which pivot is closest to the query point (get each and lookup distance).
 		Pivot pivot = getClosestPivot(points, pivots, queryPoint);
-		//Calculate density of the pivot (L1 Median)
-		double density = getDensity(pivot);
+		//Calculate density of the quadrant for which the point falls in
+		double density = getDensity(queryPoint);
 		//Get value of first range query
 		double range = deriveRange(k, density);
 		//Issue successive range query until kNN found
@@ -199,12 +191,77 @@ public class PivotIndex implements IIndexingScheme {
 			} catch(IOException e){
 				e.printStackTrace();
 			}
-
+	}
+	
+	private void instantiateQuadrants(){
+		Coordinate [] upperLeftCoordinateArray, upperRightCoordinateArray,
+		lowerRightCoordinateArray, lowerLeftCoordinateArray= new Coordinate[4];
+		
+		upperLeftCoordinateArray[0] = new Coordinate(centroid.getX(), centroid.getY());
+		upperLeftCoordinateArray[1] = new Coordinate(minX, centroid.getY());
+		upperLeftCoordinateArray[2] = new Coordinate(minX, maxY);
+		upperLeftCoordinateArray[3] = new Coordinate(centroid.getX(), maxY);
+		upperLeft = new Quadrant(getQuadrantArea(upperLeftCoordinateArray));
+		
+		upperRightCoordinateArray[0] = new Coordinate(centroid.getX(), centroid.getY());
+		upperRightCoordinateArray[1] = new Coordinate(centroid.getX(), maxX);
+		upperRightCoordinateArray[2] = new Coordinate(maxX, maxY);
+		upperRightCoordinateArray[3] = new Coordinate(maxX, centroid.getY());
+		upperRight = new Quadrant(getQuadrantArea(upperRightCoordinateArray));
+		
+		lowerRightCoordinateArray[0] = new Coordinate(centroid.getX(), centroid.getY());
+		lowerRightCoordinateArray[1] = new Coordinate(maxX, centroid.getY());
+		lowerRightCoordinateArray[2] = new Coordinate(maxX, minY);
+		lowerRightCoordinateArray[3] = new Coordinate(centroid.getX(), minY);
+		lowerRight = new Quadrant(getQuadrantArea(lowerRightCoordinateArray));
+		
+		lowerLeftCoordinateArray[0] = new Coordinate(centroid.getX(), centroid.getY());
+		lowerLeftCoordinateArray[1] = new Coordinate(centroid.getY(), minY);
+		lowerLeftCoordinateArray[2] = new Coordinate(minX, minY);
+		lowerLeftCoordinateArray[3] = new Coordinate(minX, centroid.getY());
+		lowerLeft = new Quadrant(getQuadrantArea(lowerLeftCoordinateArray));
+	}
+	
+	private Quadrant getQuadrant(Point point){
+		double x = point.getX();
+		double y = point.getY();
+		
+		if(x <= centroid.getX() && y >= centroid.getY()){
+			return upperLeft;
+		} else if(x >= centroid.getX() && y >= centroid.getY()){
+			return upperRight;
+		} else if(x >= centroid.getX() && y <= centroid.getY()){
+			return lowerRight;
+		} else{
+			return lowerLeft;
+		}
+	}
+	
+	private double getQuadrantArea(Coordinate [] coordinates){
+		GeometryFactory geomFactory = new GeometryFactory();
+		LinearRing linear = new GeometryFactory().createLinearRing(coordinates);
+		Polygon polygon = new Polygon(linear, null, geomFactory);
+		return polygon.getArea();
+	}
+	
+	//(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy), (minx, miny). 
+	private void setEnvelopeValues(List<Point> points, 
+			com.vividsolutions.jts.geom.Point centroidPoint){
+		minX = points.get(0).getX();
+		minY = points.get(0).getY();
+		maxX = points.get(1).getX();
+		maxY = points.get(2).getY();
+		centroid = new Point(centroidPoint.getX(), centroidPoint.getY());
+		//Create quadrants from minimum bounding box of convex hull
+		instantiateQuadrants();
 	}
 	
 	private List<Point> getConvexHullPoints(List<Point> points){
 		//Convert to Array, as this works better with the convex hull computation
 		ConvexHull convexHull = new ConvexHull(PivotUtilities.convertPointListToCoordArray(points), new GeometryFactory());
+		//(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy), (minx, miny). 
+		setEnvelopeValues(PivotUtilities.convertCoordArrayToPointList(convexHull.getConvexHull()
+				.getEnvelope().getCoordinates(), convexHull.getConvexHull().getCentroid()));
 		return PivotUtilities.convertCoordArrayToPointList(convexHull.getConvexHull().getCoordinates());
 	}
 
@@ -234,6 +291,10 @@ public class PivotIndex implements IIndexingScheme {
 		pivots.add(new Pivot(points.get(0)));
 		for(int i = 1; i < points.size(); i++){
 			Point point = points.get(i);
+			//Perform point-in-polygon query to determine which quadrant the point lies in
+			//Update counter for density
+			getQuadrant(point).incrememntObservations();
+			
 			boolean satisfiesPivotCriteria = true;
 			for(int j = 0; j < pivots.size(); j++){
 				if(! (PivotUtilities.getDistance(point, pivots.get(j)) >= (maximumDistance * alpha))){
@@ -247,6 +308,11 @@ public class PivotIndex implements IIndexingScheme {
 				pivots.add(pivot); 
 			}
 		}
+		//Calculate density for each quadrant
+		upperLeft.setDensity(upperLeft.getDensity());
+		upperRight.setDensity(upperRight.getDensity());
+		lowerLeft.setDensity(lowerLeft.getDensity());
+		lowerRight.setDensity(lowerRight.getDensity());
 		return pivots;
 	}
 
