@@ -131,7 +131,12 @@ public class PivotTester {
 		System.out.println("Running test on points from California Roads...");
 		System.out.println("Dataset includes " + californiaPoints.size() + " distinct observations");
 		//runTest(californiaPoints, pivotIndex, false, true, 250.0, 15);
-		runTest(californiaPoints, pivotIndex, false, true, 250.0, 15);
+		
+		//For range query -- 
+		//runTest(californiaPoints, pivotIndex, false, true, 250.0, 15);
+		runTest(californiaPoints, pivotIndex, false, true, 250.0, 4000);
+		
+		
 		/*long startTime = System.currentTimeMillis();
 		List<Point> walkingDeadPoints = populatePointsFromWalkingDeadDataset();
 		long endTime = System.currentTimeMillis();

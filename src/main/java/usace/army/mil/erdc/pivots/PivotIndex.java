@@ -44,8 +44,11 @@ public class PivotIndex implements IIndexingScheme {
 	private double minY;
 	private double maxX;
 	private double maxY;
-	private com.vividsolutions.jts.geom.Point centroid;
-	private Quadrant upperLeft, upperRight, lowerLeft, lowerRight;
+	private static Point centroid;
+	private static Quadrant upperLeft;
+	private static Quadrant upperRight;
+	private static Quadrant lowerLeft;
+	private static Quadrant lowerRight;
 	
 	public PivotIndex(){
 		pointFactory = new PointFactory();
@@ -194,35 +197,39 @@ public class PivotIndex implements IIndexingScheme {
 	}
 	
 	private void instantiateQuadrants(){
-		Coordinate [] upperLeftCoordinateArray, upperRightCoordinateArray,
-		lowerRightCoordinateArray, lowerLeftCoordinateArray= new Coordinate[4];
+		Coordinate [] upperLeftCoordinateArray = new Coordinate[5], upperRightCoordinateArray = new Coordinate[5],
+		lowerRightCoordinateArray = new Coordinate[5], lowerLeftCoordinateArray= new Coordinate[5];
 		
 		upperLeftCoordinateArray[0] = new Coordinate(centroid.getX(), centroid.getY());
 		upperLeftCoordinateArray[1] = new Coordinate(minX, centroid.getY());
 		upperLeftCoordinateArray[2] = new Coordinate(minX, maxY);
 		upperLeftCoordinateArray[3] = new Coordinate(centroid.getX(), maxY);
+		upperLeftCoordinateArray[4] = new Coordinate(centroid.getX(), centroid.getY());
 		upperLeft = new Quadrant(getQuadrantArea(upperLeftCoordinateArray));
 		
 		upperRightCoordinateArray[0] = new Coordinate(centroid.getX(), centroid.getY());
 		upperRightCoordinateArray[1] = new Coordinate(centroid.getX(), maxX);
 		upperRightCoordinateArray[2] = new Coordinate(maxX, maxY);
 		upperRightCoordinateArray[3] = new Coordinate(maxX, centroid.getY());
+		upperRightCoordinateArray[4] = new Coordinate(centroid.getX(), centroid.getY());
 		upperRight = new Quadrant(getQuadrantArea(upperRightCoordinateArray));
 		
 		lowerRightCoordinateArray[0] = new Coordinate(centroid.getX(), centroid.getY());
 		lowerRightCoordinateArray[1] = new Coordinate(maxX, centroid.getY());
 		lowerRightCoordinateArray[2] = new Coordinate(maxX, minY);
 		lowerRightCoordinateArray[3] = new Coordinate(centroid.getX(), minY);
+		lowerRightCoordinateArray[4] = new Coordinate(centroid.getX(), centroid.getY());
 		lowerRight = new Quadrant(getQuadrantArea(lowerRightCoordinateArray));
 		
 		lowerLeftCoordinateArray[0] = new Coordinate(centroid.getX(), centroid.getY());
 		lowerLeftCoordinateArray[1] = new Coordinate(centroid.getY(), minY);
 		lowerLeftCoordinateArray[2] = new Coordinate(minX, minY);
 		lowerLeftCoordinateArray[3] = new Coordinate(minX, centroid.getY());
+		lowerLeftCoordinateArray[4] = new Coordinate(centroid.getX(), centroid.getY());
 		lowerLeft = new Quadrant(getQuadrantArea(lowerLeftCoordinateArray));
 	}
 	
-	private Quadrant getQuadrant(Point point){
+	private static Quadrant getQuadrant(Point point){
 		double x = point.getX();
 		double y = point.getY();
 		
@@ -261,7 +268,7 @@ public class PivotIndex implements IIndexingScheme {
 		ConvexHull convexHull = new ConvexHull(PivotUtilities.convertPointListToCoordArray(points), new GeometryFactory());
 		//(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy), (minx, miny). 
 		setEnvelopeValues(PivotUtilities.convertCoordArrayToPointList(convexHull.getConvexHull()
-				.getEnvelope().getCoordinates(), convexHull.getConvexHull().getCentroid()));
+				.getEnvelope().getCoordinates()), convexHull.getConvexHull().getCentroid());
 		return PivotUtilities.convertCoordArrayToPointList(convexHull.getConvexHull().getCoordinates());
 	}
 
