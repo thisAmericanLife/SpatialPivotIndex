@@ -307,6 +307,7 @@ public class PivotIndex implements IIndexingScheme {
 				if(! (PivotUtilities.getDistance(point, pivots.get(j)) >= (maximumDistance * alpha))){
 					//TODO: add interface
 					satisfiesPivotCriteria = false;
+					break;
 				}
 			}
 			if(satisfiesPivotCriteria){

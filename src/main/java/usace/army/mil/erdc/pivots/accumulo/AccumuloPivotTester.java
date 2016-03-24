@@ -6,8 +6,12 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -15,17 +19,25 @@ import java.util.Map.Entry;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.Properties;
 
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+
 import org.apache.accumulo.core.cli.BatchWriterOpts;
 import org.apache.accumulo.core.cli.ClientOnRequiredTable;
+import org.apache.accumulo.core.client.BatchScanner;
 import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.BatchWriterConfig;
 import org.apache.accumulo.core.client.Connector;
+import org.apache.accumulo.core.client.IteratorSetting;
 import org.apache.accumulo.core.client.MutationsRejectedException;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Mutation;
+import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
+import org.apache.accumulo.core.iterators.SortedKeyIterator;
+import org.apache.accumulo.core.iterators.user.WholeRowIterator;
 import org.apache.accumulo.core.security.ColumnVisibility;
 import org.apache.hadoop.io.Text;
 
@@ -46,6 +58,9 @@ public class AccumuloPivotTester extends PivotTester {
 	final private static Gson gson = new Gson();
 	private final static String CALIFORNIA_ROADS_PATH = "/home/hduser/CaliforniaRoadNetworksNodes.txt";
 	private final static String WALKING_DEAD_TWEETS_PATH = "/home/hduser/twitter_sm.tsv";
+	
+
+
 
 
 	//private static ClientOnRequiredTable opts = null;
@@ -56,7 +71,8 @@ public class AccumuloPivotTester extends PivotTester {
 
 	private static Point selectPointFromListRandomly(Scanner points, int datasetSize){
 		Random random = new Random();
-		Scanner randomPoint = AccumuloConnectionManager.queryAccumulo("points","point_" + random.nextInt(datasetSize), "POINT", "POJO");
+		Scanner randomPoint = AccumuloConnectionManager.queryAccumulo("points",
+				"point_" + random.nextInt(datasetSize), "POINT", "POJO");
 		Point point = null;
 		for(Entry<Key,Value> entrySet : randomPoint){
 			point = gson.fromJson(entrySet.getValue().toString(), Point.class);
@@ -105,9 +121,11 @@ public class AccumuloPivotTester extends PivotTester {
 		return br;
 	}
 	
+	
+	
 	private static Scanner populateAccumuloFromDisk(String filename){
 		PointFactory pointFactory = new PointFactory();
-		List<Mutation> mutations = new ArrayList<Mutation>();
+		
 		BufferedReader br = getBufferedReader(filename);
 		boolean isWalkingDeadData = false;
 		if(! filename.substring(filename.length() -4).equals(".tsv")){
@@ -116,34 +134,43 @@ public class AccumuloPivotTester extends PivotTester {
 		String line;
 		int i = 0;
 		int batchWriterIndex = 0;
+		List<Mutation> mutations = new ArrayList<Mutation>();
 		try {
 			while((line = br.readLine()) != null){
+				
 				Point point = (Point)pointFactory.getPoint(IPoint.PointType.POINT);
 				if(isWalkingDeadData){
 					point.setX(Double.parseDouble(Arrays.asList(line.split(" ")).get(2)));
 					point.setY(Double.parseDouble(Arrays.asList(line.split(" ")).get(1)));
-					point.setUID(String.valueOf("point_" + i));
-					mutations.add(AccumuloConnectionManager.getMutation(point.getUID(), "POINT", "POJO", gson.toJson(point, Point.class)));
+					String UID = PivotUtilities.hashUID("point_" + i);
+					
+					point.setUID(UID);
+					mutations.add(AccumuloConnectionManager.getMutation(UID, "POINT", "POJO", gson.toJson(point, Point.class)));
 					//Write to Accumulo
 				} else {
 					String [] delimitedString = line.split("\t");
 					point.setX(Double.parseDouble(delimitedString[6]));
 					point.setY(Double.parseDouble(delimitedString[5]));
-					point.setUID(String.valueOf("point_" + i));
-					mutations.add(AccumuloConnectionManager.getMutation(point.getUID(), "POINT", "POJO", gson.toJson(point, Point.class)));
+					String UID = PivotUtilities.hashUID("point_" + i);
+					
+					point.setUID(UID);
+					mutations.add(AccumuloConnectionManager.getMutation(UID, "POINT", "POJO", gson.toJson(point, Point.class)));
 					//Write to Accumulo
 				}
+				
 				i++;
-				batchWriterIndex++;
+				/*batchWriterIndex++;
 				//Flush every 500 values
 				if(batchWriterIndex > 499){
 					AccumuloConnectionManager.writeMutations(mutations, bwOpts, bwConfig);
 					mutations.clear();
 					batchWriterIndex = 0;
-				}
+				}*/
 			}
-			mutations.add(AccumuloConnectionManager.getMutation("!!!POINT_COUNT", "DATASET", "COUNT", String.valueOf(i+ 1)));
-			AccumuloConnectionManager.writeMutations(mutations,  bwOpts, bwConfig);
+			AccumuloConnectionManager.writeMutations(mutations,  bwOpts, bwConfig, false);
+			List<Mutation> mutationList = new ArrayList<Mutation>();
+			mutationList.add(AccumuloConnectionManager.getMutation("!!!POINT_COUNT", "DATASET", "COUNT", String.valueOf(i+ 1)));
+			AccumuloConnectionManager.writeMutations(mutationList,  bwOpts, bwConfig, false);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -206,7 +233,7 @@ public class AccumuloPivotTester extends PivotTester {
 			mutations.add(AccumuloConnectionManager.getMutation("point_" + i, "POINT", "POJO", gson.toJson(point, Point.class)));
 			i++;
 		}
-		AccumuloConnectionManager.writeMutations(mutations, bwOpts, bwConfig);
+		AccumuloConnectionManager.writeMutations(mutations, bwOpts, bwConfig, false);
 	}
 
 	private static void init(String [] args) throws FileNotFoundException{
@@ -218,35 +245,53 @@ public class AccumuloPivotTester extends PivotTester {
 		connectionManager = new AccumuloConnectionManager(opts);
 		connectionManager.connect();
 		//Verify table exists
-		connectionManager.verifyTableExistence(opts.getTableName());
+		AccumuloConnectionManager.verifyTableExistence(opts.getTableName());
+		AccumuloConnectionManager.verifyTableExistence("pointsIndex");
 
 		PivotIndexFactory indexFactory = new PivotIndexFactory();
 		IIndexingScheme index = indexFactory.getIndex(IIndexingScheme.PivotIndexType.ACCUMULO);
-		System.out.println("Populating dataset...");
-		Scanner points = populateAccumuloFromDisk(getValueFromConfigFile("dataset"));
+		//System.out.println("Populating dataset...");
+		//long startPopulateTime = System.currentTimeMillis();
+		//Scanner pointScanner = populateAccumuloFromDisk(getValueFromConfigFile("dataset"));
+		//long endPopulateTime = System.currentTimeMillis();
+		//System.out.println("Time take to populate datasets: " + (endPopulateTime - startPopulateTime));
+		//System.exit(0);
 		//Calculate pivots
+		
+		Scanner points = AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
+		//BatchScanner points = AccumuloConnectionManager.getBatchScanner("points");
+		
+		//points.addScanIterator(new IteratorSetting(1,WholeRowIterator.class));
+		//points.fetchColumn(new Text("POINT"), new Text("POJO")); 
+		//points.setRanges(Collections.singleton(new Range()));
+		//Scanner points = AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
 		System.out.println("Selecting pivots.");
 		long startTime = System.currentTimeMillis();
-		((AccumuloPivotIndex)index).choosePivotsSparseSpatialIndex(points, bwConfig, true);
+		List<Pivot> pivots = ((AccumuloPivotIndex)index).choosePivotsSparseSpatialIndex(points, bwConfig, true);
 		long pivotSelectionTime = System.currentTimeMillis();
 		System.out.println("Time take to select pivots: " + (pivotSelectionTime - startTime));
 		
 		//Get map values
 		System.out.println("Mapping pivots...");
-		Scanner pivots =  AccumuloConnectionManager.queryAccumulo("points", "PIVOT", "POJO");
+		//Scanner pivots =  AccumuloConnectionManager.queryAccumulo("points", "PIVOT", "POJO");
+		//BatchScanner pivots = AccumuloConnectionManager.getBatchScanner("points");
+		//pivots.setRanges(Collections.singleton(new Range()));
+		//pivots.addScanIterator(new IteratorSetting(1,WholeRowIterator.class));
+		//pivots.fetchColumn(new Text("PIVOT"), new Text("POJO")); 
+		long beginPivotMapTime = System.currentTimeMillis();
 		((AccumuloPivotIndex)index).populatePivotMapValues(pivots, points, bwConfig);
-		long pivotMapTime = System.currentTimeMillis();
-
+		long endPivotMapTime = System.currentTimeMillis();
+		System.out.println("Time taken to map pivots: " + (endPivotMapTime - beginPivotMapTime));
+		
+		
 		//Get randomly selected point from newly created points
 		Point queryPoint = selectPointFromListRandomly(points, ((AccumuloPivotIndex)index).getDatasetSize());
 		System.out.println("Query point: " + queryPoint.getX() + ", " + queryPoint.getY() + ".");
 
 		//Issue range query
-		Scanner pivotScanner =  AccumuloConnectionManager.queryAccumulo("points", "PIVOT", "POJO");
-		Scanner pointScanner =  AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
 		System.out.println("Performing range query...");
 		long rangeQueryBeforeTime = System.currentTimeMillis();
-		Scanner neighbors = ((AccumuloPivotIndex)index).rangeQueryAccumulo(pointScanner, pivotScanner, queryPoint, 
+		Scanner neighbors = ((AccumuloPivotIndex)index).rangeQueryAccumulo(points, pivots, queryPoint, 
 				Integer.parseInt(getValueFromConfigFile("range")), bwConfig);
 		long rangeQueryAfterTime = System.currentTimeMillis();
 		System.out.println("Time taken to perform range query: " + (rangeQueryAfterTime - rangeQueryBeforeTime) + " milliseconds." );

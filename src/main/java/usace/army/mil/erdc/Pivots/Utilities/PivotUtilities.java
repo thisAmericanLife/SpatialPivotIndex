@@ -1,9 +1,16 @@
 package usace.army.mil.erdc.Pivots.Utilities;
 
+import java.math.BigInteger;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
 
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+
+import org.apache.accumulo.core.client.BatchScanner;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Value;
@@ -21,6 +28,8 @@ import usace.army.mil.erdc.pivots.models.oReilly.QuickSortExternal;
 public class PivotUtilities {
 	
 	private static final int NUM_THREADS = 4;
+	private static final int ITERATIONS = 1000;
+	private static final int KEY_LENGTH = 192; // bits
 	//Static utility functions
 		static final public double getDistance(IPoint source, IPoint target){
 			return Math.sqrt(Math.pow((target.getX() - source.getX()),2) + Math.pow((target.getY() - source.getY()),2));
@@ -88,6 +97,21 @@ public class PivotUtilities {
 		    return hull;
 		}
 		
+		private static List<AccumuloParallelSearchThread> getParallelSearchThreads(Scanner points, int size){
+			List<AccumuloParallelSearchThread> threads = new ArrayList<AccumuloParallelSearchThread>();
+			Double quarterPointFloat = new Double(size / 4.0);
+			Double midpointFloat = new Double(size / 2.0);
+			int quarterPoint = quarterPointFloat.intValue();
+			int midpoint = midpointFloat.intValue();
+			
+			/*threads.add(new AccumuloParallelSearchThread(points, points.subList(0, quarterPoint)));
+			threads.add(new AccumuloParallelSearchThread(points, points.subList(quarterPoint + 1, midpoint)));
+			threads.add(new AccumuloParallelSearchThread(points, points.subList(midpoint + 1, midpoint + quarterPoint)));
+			threads.add(new AccumuloParallelSearchThread(points, points.subList(midpoint + quarterPoint + 1, points.size())));*/
+			
+			return null;
+		}
+		
 		private static List<ParallelSearchThread> getParallelSearchThreads(List<Point> points){
 			List<ParallelSearchThread> threads = new ArrayList<ParallelSearchThread>();
 			Double quarterPointFloat = new Double(points.size() / 4.0);
@@ -129,6 +153,37 @@ public class PivotUtilities {
 			}
 			return coordinates;
 		}
+		
+		public static String hashUID(String UID){
+		    char[] uidChars = UID.toCharArray();
+		    byte[] saltBytes = "salt".getBytes();
+		    byte[] hashedUID = null;
+
+		    PBEKeySpec spec = new PBEKeySpec(
+		    		uidChars,
+		        saltBytes,
+		        ITERATIONS,
+		        KEY_LENGTH
+		    );
+		    SecretKeyFactory key;
+			try {
+				key = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+				hashedUID = key.generateSecret(spec).getEncoded();
+			} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		    //pre-process
+			String uid = String.format("%x", new BigInteger(hashedUID));
+			/*if(uid.charAt(0) == '-'){
+				StringBuilder sb = new StringBuilder();
+				sb.append(uid.substring(1));
+				return sb.toString();
+			} else{
+				return uid;
+			}*/
+			return uid;
+		  }
 		
 		//For Accumulo
 		public static Coordinate [] convertPointListToCoordArray(Scanner points, int datasetSize){
