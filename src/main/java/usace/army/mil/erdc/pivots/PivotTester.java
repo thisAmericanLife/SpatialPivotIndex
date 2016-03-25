@@ -126,7 +126,7 @@ public class PivotTester {
 		//Create points from file, California Road Network's Nodes
 		//http://www.cs.fsu.edu/~lifeifei/SpatialDataset.htm
 		long startTime = System.currentTimeMillis();
-		List<Point> californiaPoints = populatePointsFromCaliforniaRoadsDataset();
+		List<Point> californiaPoints = populatePointsFromWalkingDeadDataset();
 		long endTime = System.currentTimeMillis();
 		System.out.println("Running test on points from California Roads...");
 		System.out.println("Dataset includes " + californiaPoints.size() + " distinct observations");
@@ -134,7 +134,7 @@ public class PivotTester {
 		
 		//For range query -- 
 		//runTest(californiaPoints, pivotIndex, false, true, 250.0, 15);
-		runTest(californiaPoints, pivotIndex, false, true, 250.0, 4000);
+		runTest(californiaPoints, pivotIndex, true, false, 250.0, 4000);
 		
 		
 		/*long startTime = System.currentTimeMillis();

@@ -57,6 +57,24 @@ public class AccumuloConnectionManager {
 		}
 	}*/
 
+	public static void prepareTablesForTest(List<String> tables){
+		for(String table : tables){
+			try {
+				//If Table exists, blow that bad boy away
+				if(connector.tableOperations().exists(table)){
+					connector.tableOperations().delete(table);
+					connector.tableOperations().create(table);
+				} else{
+					//If not, then create new
+					connector.tableOperations().create(table);
+				}
+			} catch (AccumuloException | AccumuloSecurityException | TableExistsException
+					| TableNotFoundException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 	public static void verifyTableExistence(String tableName){
 		if(!connector.tableOperations().exists(tableName))
 		{
@@ -189,7 +207,37 @@ public class AccumuloConnectionManager {
 			//scan.setRanges(ranges);
 			//scan.fetchColumn(new Text(columnFamily), new Text(columnQualifier));
 			scan.setRanges(Collections.singleton(new Range(columnRange, columnRange)));
-			
+
+		} catch (TableNotFoundException e) {
+			e.printStackTrace();
+		}
+		return scan;
+	}
+	
+	/**
+	 * Returns scanner object for a given query criteria, and allows calling function to iterate
+	 * over the results accordingly.
+	 * @param tableName
+	 * @param columnRange
+	 * @param columnFamily
+	 * @param columnQualifier
+	 * @return
+	 */
+	public static Scanner queryAccumuloWithFilter(String tableName, String columnRange,
+			String columnFamily, String columnQualifier, Connector connection){
+		Scanner scan = null;
+		try {
+			scan = connection.createScanner(tableName, new Authorizations());
+			Key startKey = new Key(columnRange, columnFamily, columnQualifier);
+			Key endKey = new Key(new StringBuilder().append(columnRange).append("\0").toString(), columnFamily, columnQualifier);
+
+			/*IteratorSetting itr = new IteratorSetting(1, "myIterator", PointMapFilter.class);
+			itr.addOption(PointMapFilter.ROW_ID, columnRange);
+
+			scan.addScanIterator(itr);*/
+
+			scan.setRange(new Range(startKey, endKey));
+			scan.fetchColumn(new Text(columnFamily), new Text(columnQualifier));
 		} catch (TableNotFoundException e) {
 			e.printStackTrace();
 		}
@@ -240,6 +288,27 @@ public class AccumuloConnectionManager {
 		try {
 			scan = connector.createScanner(tableName, new Authorizations());
 			scan.setRange(new Range(columnRange));
+			scan.fetchColumn(new Text(columnFamily), new Text(columnQualifier));
+		} catch (TableNotFoundException e) {
+			e.printStackTrace();
+		}
+		return scan;
+	}
+	
+	/**
+	 * Returns scanner object for a given query criteria, and allows calling function to iterate
+	 * over the results accordingly- overloaded to omit columnRange;
+	 * @param tableName
+	 * @param columnRange
+	 * @param columnFamily
+	 * @param columnQualifier
+	 * @return
+	 */
+	public static Scanner queryAccumulo(String tableName, String columnFamily, 
+			String columnQualifier, Connector connection){
+		Scanner scan = null;
+		try {
+			scan = connection.createScanner(tableName, new Authorizations());
 			scan.fetchColumn(new Text(columnFamily), new Text(columnQualifier));
 		} catch (TableNotFoundException e) {
 			e.printStackTrace();

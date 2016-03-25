@@ -70,14 +70,18 @@ public class AccumuloPivotTester extends PivotTester {
 	private static BatchWriterConfig bwConfig = null;
 
 	private static Point selectPointFromListRandomly(Scanner points, int datasetSize){
-		Random random = new Random();
+		/*Random random = new Random();
 		Scanner randomPoint = AccumuloConnectionManager.queryAccumulo("points",
 				"point_" + random.nextInt(datasetSize), "POINT", "POJO");
 		Point point = null;
 		for(Entry<Key,Value> entrySet : randomPoint){
 			point = gson.fromJson(entrySet.getValue().toString(), Point.class);
-		}
-		return point;
+		}*/
+		Point randomPoint = new Point();
+		randomPoint.setUID("point_9165");
+		randomPoint.setX(37.511528);
+		randomPoint.setY(-122.342438);
+		return randomPoint;
 	}
 	
 	private static String getValueFromConfigFile(String type) throws FileNotFoundException{

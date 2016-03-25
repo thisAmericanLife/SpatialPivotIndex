@@ -145,7 +145,7 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 	//	Column Qualifier : <PointUID>
 	private double getPrecomputedDistanceFromAccumulo(Point point, Pivot pivot){
 		double distance = 0.0;
-		BatchScanner batchScanner = AccumuloConnectionManager.getBatchScanner("pointsIndex");
+		//BatchScanner batchScanner = AccumuloConnectionManager.getBatchScanner("pointsIndex");
 		
 		BatchScanner scanner = AccumuloConnectionManager.queryAccumuloWithIterator("pointsIndex", 
 				pivot.getPivotID(),
@@ -196,16 +196,23 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 			Text[] terms = new Text[1];
 			terms[0] = new Text(currentPoint.getUID());
 			IteratorSetting iterSetting = new IteratorSetting(1, "IntersectingIterator", IntersectingIterator.class);
+			Map<String,String> grepProps = new HashMap<String,String>();
+			grepProps.put("term", closestPivot.getPivotID());
+			IteratorSetting grepIterSetting = new IteratorSetting(2, "GreppingIterator", ModifiedGrepIterator.class, grepProps);
 			IntersectingIterator.setColumnFamilies(iterSetting, terms);
 		//	batchScanner.fetchColumnFamily(new Text(currentPoint.getUID()));
 			batchScanner.addScanIterator(iterSetting);
+		//	batchScanner.addScanIterator(grepIterSetting);
 			batchScanner.setRanges(Collections.singleton(new Range(closestPivot.getPivotID(), closestPivot.getPivotID())));
 			
 			for(Entry<Key,Value> scannerEntry : batchScanner) {
+				//if(scannerEntry.getKey().getColumnFamily().toString().equals(currentPoint.getUID())){
 					currentPointToPivotDist = Double.parseDouble(scannerEntry.getKey().getColumnQualifier().toString());
 					break;
+				//}
 			}
-			batchScanner.removeScanIterator("IntersectingIterator");
+			
+			batchScanner.clearScanIterators();
 			
 			long endPrecomputedDistTime  = System.currentTimeMillis();
 			//System.out.println("Closest pivot selection: " + (endPrecomputedDistTime - beginPrecomputedDistTime));

@@ -1,6 +1,8 @@
 package usace.army.mil.erdc.pivots.models;
 
-public interface IPoint{
+import java.io.Serializable;
+
+public interface IPoint extends Serializable{
 	public double getX();
 	public void setX(double x);
 	public double getY();
