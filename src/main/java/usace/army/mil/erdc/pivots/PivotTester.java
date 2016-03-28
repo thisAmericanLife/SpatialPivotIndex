@@ -29,7 +29,7 @@ public class PivotTester {
 		return points.get(random.nextInt(10000));
 	}
 	
-	private static List<Point> populatePointsFromCaliforniaRoadsDataset(){
+	public static List<Point> populatePointsFromCaliforniaRoadsDataset(){
 		List<Point> points = new ArrayList<Point>();
 		
 		try (BufferedReader br = new BufferedReader(new FileReader(CALIFORNIA_ROADS_PATH))) {
