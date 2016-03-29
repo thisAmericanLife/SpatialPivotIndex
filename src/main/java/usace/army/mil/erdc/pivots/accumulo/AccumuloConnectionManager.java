@@ -228,15 +228,39 @@ public class AccumuloConnectionManager {
 		Scanner scan = null;
 		try {
 			scan = connection.createScanner(tableName, new Authorizations());
-			Key startKey = new Key(columnRange, columnFamily, columnQualifier);
+			/*Key startKey = new Key(columnRange, 
+					columnFamily, 
+					columnQualifier);
 			Key endKey = new Key(new StringBuilder().append(columnRange).append("\0").toString(), columnFamily, columnQualifier);
 
-			/*IteratorSetting itr = new IteratorSetting(1, "myIterator", PointMapFilter.class);
+			IteratorSetting itr = new IteratorSetting(1, "myIterator", PointMapFilter.class);
 			itr.addOption(PointMapFilter.ROW_ID, columnRange);
 
 			scan.addScanIterator(itr);*/
 
-			scan.setRange(new Range(startKey, endKey));
+			scan.setRange(new Range(columnRange, columnRange));
+			scan.fetchColumnFamily(new Text(columnFamily));
+		} catch (TableNotFoundException e) {
+			e.printStackTrace();
+		}
+		return scan;
+	}
+	public static Scanner queryAccumuloWithFilter2(String tableName, String columnRange,
+			String columnFamily, String columnQualifier){
+		Scanner scan = null;
+		try {
+			scan = connector.createScanner(tableName, new Authorizations());
+			/*Key startKey = new Key(columnRange, 
+					columnFamily, 
+					columnQualifier);
+			Key endKey = new Key(new StringBuilder().append(columnRange).append("\0").toString(), columnFamily, columnQualifier);
+
+			IteratorSetting itr = new IteratorSetting(1, "myIterator", PointMapFilter.class);
+			itr.addOption(PointMapFilter.ROW_ID, columnRange);
+
+			scan.addScanIterator(itr);*/
+
+			scan.setRange(new Range(columnRange, columnRange));
 			scan.fetchColumn(new Text(columnFamily), new Text(columnQualifier));
 		} catch (TableNotFoundException e) {
 			e.printStackTrace();
@@ -443,7 +467,7 @@ public class AccumuloConnectionManager {
 		return connector;
 	}
 
-	public void setConnector(Connector connector) {
+	public static void setConnector(Connector connector) {
 		AccumuloConnectionManager.connector = connector;
 	}
 }

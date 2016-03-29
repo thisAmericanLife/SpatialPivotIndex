@@ -1,11 +1,13 @@
 package usace.army.mil.erdc.pivots.models;
 
 import java.util.Comparator;
+import java.util.Map;
 
 public class Point implements IPoint {
 
 	private double x;
 	private double y;
+	private Map<String,Double> distancesToPivot;
 	protected String UID;
 	/** Numbers within this amount are considered to be the same. */
 	public static final double epsilon = 1E-9;
@@ -80,6 +82,13 @@ public class Point implements IPoint {
 
 	public void setUID(String uID) {
 		UID = uID;
+	}
+
+	public Map<String,Double> getDistancesToPivot() {
+		return distancesToPivot;
+	}
+	public void setDistancesToPivot(Map<String,Double> distancesToPivot) {
+		this.distancesToPivot = distancesToPivot;
 	}
 
 	public static Comparator<IPoint> xy_sorter =

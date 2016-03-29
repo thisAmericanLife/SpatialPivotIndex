@@ -66,6 +66,10 @@ public class PivotFilterBolt extends BaseBasicBolt{
 		}
 		return distance;
 	}
+	
+	private double getPrecomputedDistance(Point point, Pivot pivot){
+		return point.getDistancesToPivot().get(pivot.getPivotID());
+	}
 
 
 	@Override
@@ -78,7 +82,7 @@ public class PivotFilterBolt extends BaseBasicBolt{
 		Pivot pivot = getClosestPivotAccumulo(point);
 		double queryPointToPivotDist = pivotMap.get(pivot.getPivotID());
 		
-		double currentPointToPivotDist = getPrecomputedDistanceFromAccumulo(point, pivot);
+		double currentPointToPivotDist = getPrecomputedDistance(point, pivot);
 		
 		if(range <= queryPointToPivotDist + currentPointToPivotDist){
 			collector.emit(new Values(point));

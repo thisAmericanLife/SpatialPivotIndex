@@ -82,9 +82,9 @@ public class PivotTopology {
 		Connector connector = getConnector();  LocalCluster cluster = new LocalCluster();
         
 		try {                              
-		//	cluster.submitTopology(topic, conf1, createTopology(topic, pathToDrobo));
-			StormSubmitter.submitTopology(topic, conf1, createTopology(topic, connector));
-		} catch (AlreadyAliveException | InvalidTopologyException e1) {
+			cluster.submitTopology(topic, conf1, createTopology(topic,  connector));
+			//StormSubmitter.submitTopology(topic, conf1, createTopology(topic, connector));
+		} catch (Exception e1) {
 			e1.printStackTrace();
 		}               
 	}

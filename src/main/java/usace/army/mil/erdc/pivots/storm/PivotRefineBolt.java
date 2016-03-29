@@ -26,10 +26,8 @@ public class PivotRefineBolt extends BaseBasicBolt{
 		Point candidate = (Point) input.getValueByField("point");
 		double actualDistance = PivotUtilities.getDistance(candidate, queryPoint);
 		if(actualDistance <= range){
-			System.out.println("Candidate: " + candidate.getY() + " " 
-		+ candidate.getX() + ", " + actualDistance );
 			recordCounter++;
-			if(recordCounter == 28){
+			if(recordCounter == 498){
 				System.out.println("Time taken: " + (System.currentTimeMillis() -PivotFilterBolt.startTime));
 			}
 		}

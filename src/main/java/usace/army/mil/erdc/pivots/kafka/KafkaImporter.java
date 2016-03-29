@@ -177,7 +177,7 @@ public class KafkaImporter {
 		IIndexingScheme index = indexFactory.getIndex(IIndexingScheme.PivotIndexType.ACCUMULO);
 		
 		//Verify table exists
-		AccumuloConnectionManager.prepareTablesForTest(ImmutableList.of("pivots", "pivotsIndex"));
+		AccumuloConnectionManager.prepareTablesForTest(ImmutableList.of("points", "pointsIndex"));
 		AccumuloConnectionManager.verifyTableExistence(opts.getTableName());
 		
 		try {

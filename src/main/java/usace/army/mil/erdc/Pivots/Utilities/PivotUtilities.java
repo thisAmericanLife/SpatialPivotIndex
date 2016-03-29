@@ -187,7 +187,6 @@ public class PivotUtilities {
 		
 		//For Accumulo
 		public static Coordinate [] convertPointListToCoordArray(Scanner points, int datasetSize){
-			PointFactory pointFactory = new PointFactory();
 			Gson gson = new Gson();
 			Coordinate [] coordinates = new Coordinate[datasetSize- 1];
 			int i = 0;
@@ -196,6 +195,8 @@ public class PivotUtilities {
 				coordinates[i] = new Coordinate(point.getX(), point.getY());
 				i++;
 			}
+			System.out.println("i from point list to array: " + i);
+			System.out.println("i from point list to array: " + coordinates.length);
 			return coordinates;
 		}
 		
@@ -204,6 +205,7 @@ public class PivotUtilities {
 			for(int i = 0; i < coordinates.length; i++){
 				pointList.add(new Point(coordinates[i].x, coordinates[i].y));
 			}
+			System.out.println("pointlist size: " + pointList.size());
 			return pointList;
 		}
 		

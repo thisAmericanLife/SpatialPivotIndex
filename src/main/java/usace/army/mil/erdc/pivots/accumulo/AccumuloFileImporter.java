@@ -18,7 +18,10 @@ import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.data.Mutation;
 
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
+import usace.army.mil.erdc.pivots.models.IIndexingScheme;
 import usace.army.mil.erdc.pivots.models.IPoint;
+import usace.army.mil.erdc.pivots.models.Pivot;
+import usace.army.mil.erdc.pivots.models.PivotIndexFactory;
 import usace.army.mil.erdc.pivots.models.Point;
 import usace.army.mil.erdc.pivots.models.PointFactory;
 
@@ -140,9 +143,12 @@ public class AccumuloFileImporter {
 		connectionManager.connect();
 		//Verify table exists
 		AccumuloConnectionManager.verifyTableExistence(opts.getTableName());
-		
+		PivotIndexFactory indexFactory = new PivotIndexFactory();
+		IIndexingScheme index = indexFactory.getIndex(IIndexingScheme.PivotIndexType.ACCUMULO);
 		try {
-			populateAccumuloFromDisk(getValueFromConfigFile("dataset"));
+			Scanner points = populateAccumuloFromDisk(getValueFromConfigFile("dataset"));
+			List<Pivot> pivots = ((AccumuloPivotIndex)index).choosePivotsSparseSpatialIndex(points, bwConfig, true);
+			((AccumuloPivotIndex)index).populatePivotMapValues(pivots, points, bwConfig);
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

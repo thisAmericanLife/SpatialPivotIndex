@@ -16,6 +16,7 @@ usace/army/mil/erdc/pivots/models/PointFactory.class
 usace/army/mil/erdc/pivots/accumulo/AccumuloPivotIndex$1.class
 usace/army/mil/erdc/pivots/models/oReilly/ConvexHullScan$2.class
 usace/army/mil/erdc/pivots/models/IPoint$PointType.class
+usace/army/mil/erdc/pivots/accumulo/ScannerTester.class
 hadoop/DistributedPivotTester.class
 usace/army/mil/erdc/pivots/models/IIndexingScheme$PivotIndexType.class
 usace/army/mil/erdc/pivots/models/Pivot.class
@@ -26,8 +27,9 @@ usace/army/mil/erdc/pivots/accumulo/AccumuloFileImporter.class
 usace/army/mil/erdc/pivots/storm/PivotRefineBolt.class
 usace/army/mil/erdc/pivots/accumulo/PointMapFilter.class
 usace/army/mil/erdc/pivots/storm/PivotRangeQueryBolt.class
+usace/army/mil/erdc/pivots/kafka/KafkaImporter.class
+usace/army/mil/erdc/pivots/kafka/KafkaImporter$Opts.class
 usace/army/mil/erdc/pivots/accumulo/AccumuloPivotIndex.class
-usace/army/mil/erdc/pivots/storm/KafkaImporter$Opts.class
 usace/army/mil/erdc/pivots/kafka/ProducerManager.class
 usace/army/mil/erdc/pivots/models/oReilly/IConvexHull.class
 usace/army/mil/erdc/pivots/PivotIndex.class
@@ -43,7 +45,6 @@ usace/army/mil/erdc/pivots/models/IIndexingScheme.class
 usace/army/mil/erdc/pivots/accumulo/AccumuloFileImporter$Opts.class
 usace/army/mil/erdc/pivots/PivotTester.class
 usace/army/mil/erdc/Pivots/Utilities/AccumuloParallelSearchThread.class
-usace/army/mil/erdc/pivots/storm/KafkaImporter.class
 usace/army/mil/erdc/pivots/models/oReilly/ConvexHullScan.class
 usace/army/mil/erdc/pivots/accumulo/AccumuloPivotTester.class
 usace/army/mil/erdc/pivots/models/oReilly/QuickSortExternal.class
