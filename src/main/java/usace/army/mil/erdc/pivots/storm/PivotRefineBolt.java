@@ -15,6 +15,7 @@ public class PivotRefineBolt extends BaseBasicBolt{
 	private static double range;
 	private static Point queryPoint;
 	private static int recordCounter = 0;
+	private static long startTime = 0;
 	
 	public PivotRefineBolt(Point queryPoint, double range){
 		PivotRefineBolt.range = range;
@@ -23,13 +24,22 @@ public class PivotRefineBolt extends BaseBasicBolt{
 
 	@Override
 	public void execute(Tuple input, BasicOutputCollector collector) {
+		if(startTime == 0){
+			startTime = System.currentTimeMillis();
+		}
 		Point candidate = (Point) input.getValueByField("point");
 		double actualDistance = PivotUtilities.getDistance(candidate, queryPoint);
 		if(actualDistance <= range){
 			recordCounter++;
-			if(recordCounter == 498){
-				System.out.println("Time taken: " + (System.currentTimeMillis() -PivotFilterBolt.startTime));
+			//System.out.println("Records: " + recordCounter);
+			if(recordCounter == 120){
+				System.out.println("Time taken: " + (System.currentTimeMillis() -startTime));
 			}
+			//System.out.println("Pivot indexing scheme success: " + recordCounter);
+			/*if(recordCounter == 11649){
+				System.out.println("Time taken: " + (System.currentTimeMillis() -PivotFilterBolt.startTime));
+				System.out.println("Pivot indexing scheme success: " + recordCounter);
+			}*/
 		}
 	}
 

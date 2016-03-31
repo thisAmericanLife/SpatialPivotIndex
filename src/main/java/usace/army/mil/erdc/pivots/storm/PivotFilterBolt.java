@@ -36,7 +36,7 @@ public class PivotFilterBolt extends BaseBasicBolt{
 		PivotFilterBolt.range = range;
 	}
 	
-	private Pivot getClosestPivotAccumulo(Point currentPoint){ 
+	private Pivot getClosestPivot(Point currentPoint){ 
 		//Loop through each pivot and perform distance calculation
 		//It seems intuitive to get the pivot map for each pivot, since this is precomputed
 		//	However, this is significantly higher storage complexity.  This stategy is 
@@ -79,7 +79,7 @@ public class PivotFilterBolt extends BaseBasicBolt{
 			PivotFilterBolt.processingStarted = true;
 		}
 		Point point = (Point)input.getValueByField("point");
-		Pivot pivot = getClosestPivotAccumulo(point);
+		Pivot pivot = getClosestPivot(point);
 		double queryPointToPivotDist = pivotMap.get(pivot.getPivotID());
 		
 		double currentPointToPivotDist = getPrecomputedDistance(point, pivot);

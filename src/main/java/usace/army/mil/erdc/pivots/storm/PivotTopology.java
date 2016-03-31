@@ -79,7 +79,8 @@ public class PivotTopology {
 		conf1.put(Config.STORM_MESSAGING_NETTY_MAX_SLEEP_MS,3000);
 		conf1.put(Config.STORM_MESSAGING_NETTY_MIN_SLEEP_MS,1000);
 
-		Connector connector = getConnector();  LocalCluster cluster = new LocalCluster();
+		Connector connector = getConnector();  
+		LocalCluster cluster = new LocalCluster();
         
 		try {                              
 			cluster.submitTopology(topic, conf1, createTopology(topic,  connector));
@@ -91,9 +92,9 @@ public class PivotTopology {
 	
 	private static Point getQueryPoint(){
 		Point point = new Point();
-		point.setUID("point_9165");
-		point.setX(37.511528);
-		point.setY(-122.342438);
+		point.setUID("point_11318");
+		point.setX(36.762505);
+		point.setY(-117.874008);
 		return point;
 	}
 	
@@ -154,12 +155,7 @@ public class PivotTopology {
 		builder.setSpout("point_spout", new KafkaSpout(kafkaConf),4);
 		builder.setBolt("range_query", new PivotRangeQueryBolt(), 24).shuffleGrouping("point_spout");
 		builder.setBolt("filter_bolt", new PivotFilterBolt(pivots, pivotMap, connector, range), 64).shuffleGrouping("range_query");
-		builder.setBolt("refine_bolt", new PivotRefineBolt(queryPoint, range),24).shuffleGrouping("filter_bolt");
-
-		/*  builder.setBolt("twitter_parser", new TwitterParserBolt(),24).shuffleGrouping("twitter_spout");          
-         builder.setBolt("tweet_to_drobo", new TweetToDrobo(), 1).shuffleGrouping("twitter_parser");             
-         builder.setBolt("tweet-to-accumulo", new TweetToAccumulo(), 64).shuffleGrouping("twitter_parser");               
-         builder.setBolt("twitter-concept-to-accumulo", new TweetConceptToAccumulo(), 64).shuffleGrouping("tweet-to-accumulo");*/
+		builder.setBolt("refine_bolt", new PivotRefineBolt(queryPoint, range),12).shuffleGrouping("filter_bolt");
 
 		return builder.createTopology();
 	}  

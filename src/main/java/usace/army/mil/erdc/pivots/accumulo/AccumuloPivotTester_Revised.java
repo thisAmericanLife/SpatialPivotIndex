@@ -12,7 +12,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -43,7 +42,6 @@ import org.apache.accumulo.core.security.ColumnVisibility;
 import org.apache.hadoop.io.Text;
 
 import com.beust.jcommander.Parameter;
-import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
@@ -56,11 +54,11 @@ import usace.army.mil.erdc.pivots.models.PivotIndexFactory;
 import usace.army.mil.erdc.pivots.models.Point;
 import usace.army.mil.erdc.pivots.models.PointFactory;
 
-public class AccumuloPivotTester extends PivotTester {
+public class AccumuloPivotTester_Revised extends PivotTester {
 	final private static Gson gson = new Gson();
 	private final static String CALIFORNIA_ROADS_PATH = "/home/hduser/CaliforniaRoadNetworksNodes.txt";
 	private final static String WALKING_DEAD_TWEETS_PATH = "/home/hduser/twitter_sm.tsv";
-
+	
 
 
 
@@ -70,6 +68,11 @@ public class AccumuloPivotTester extends PivotTester {
 	private static ClientOnRequiredTable opts = null;
 	private static BatchWriterOpts bwOpts = null;
 	private static BatchWriterConfig bwConfig = null;
+	
+	private static Point selectPointFromListRandomly(List<Point> points){
+		Random random = new Random();
+		return points.get(random.nextInt(10000));
+	}
 
 	private static Point selectPointFromListRandomly(Scanner points, int datasetSize){
 		/*Random random = new Random();
@@ -86,24 +89,16 @@ public class AccumuloPivotTester extends PivotTester {
 		return randomPoint;
 	}
 	
-	private static Point selectPointFromListRandomly(){
-		Point randomPoint = new Point();
-		randomPoint.setUID("point_9165");
-		randomPoint.setX(37.511528);
-		randomPoint.setY(-122.342438);
-		return randomPoint;
-	}
-
 	private static String getValueFromConfigFile(String type) throws FileNotFoundException{
 		InputStream inputStream;
 		Properties prop = new Properties();
 		String propFileName = "/home/hduser/pivots.properties";
 		inputStream = new FileInputStream(propFileName);
-
-
+		
+		
 		if (inputStream != null) {
 			try {
-
+				
 				prop.load(inputStream);
 				if(type.equals("dataset")){
 					return prop.getProperty("dataset");
@@ -113,17 +108,17 @@ public class AccumuloPivotTester extends PivotTester {
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-
+				
 			}
 		} else {
 			throw new FileNotFoundException("property file '" + propFileName + "' not found in the classpath");
-
+			
 		}
 		System.exit(0);
 
 		return null;
 	}
-
+	
 	private static BufferedReader getBufferedReader(String filename){
 		BufferedReader br = null;
 		try {
@@ -134,12 +129,12 @@ public class AccumuloPivotTester extends PivotTester {
 		}
 		return br;
 	}
-
-
-
+	
+	
+	
 	private static Scanner populateAccumuloFromDisk(String filename){
 		PointFactory pointFactory = new PointFactory();
-
+		
 		BufferedReader br = getBufferedReader(filename);
 		boolean isWalkingDeadData = false;
 		if(! filename.substring(filename.length() -4).equals(".tsv")){
@@ -151,13 +146,13 @@ public class AccumuloPivotTester extends PivotTester {
 		List<Mutation> mutations = new ArrayList<Mutation>();
 		try {
 			while((line = br.readLine()) != null){
-
+				
 				Point point = (Point)pointFactory.getPoint(IPoint.PointType.POINT);
 				if(isWalkingDeadData){
 					point.setX(Double.parseDouble(Arrays.asList(line.split(" ")).get(2)));
 					point.setY(Double.parseDouble(Arrays.asList(line.split(" ")).get(1)));
 					String UID = PivotUtilities.hashUID("point_" + i);
-
+					
 					point.setUID(UID);
 					mutations.add(AccumuloConnectionManager.getMutation(UID, "POINT", "POJO", gson.toJson(point, Point.class)));
 					//Write to Accumulo
@@ -166,12 +161,12 @@ public class AccumuloPivotTester extends PivotTester {
 					point.setX(Double.parseDouble(delimitedString[6]));
 					point.setY(Double.parseDouble(delimitedString[5]));
 					String UID = PivotUtilities.hashUID("point_" + i);
-
+					
 					point.setUID(UID);
 					mutations.add(AccumuloConnectionManager.getMutation(UID, "POINT", "POJO", gson.toJson(point, Point.class)));
 					//Write to Accumulo
 				}
-
+				
 				i++;
 				/*batchWriterIndex++;
 				//Flush every 500 values
@@ -238,6 +233,14 @@ public class AccumuloPivotTester extends PivotTester {
 		} 
 		return points;
 	}
+	
+	private static List<Point> getPoints(Scanner scanner){
+		List<Point> points = new ArrayList<Point>();
+		for(Entry<Key,Value> pointEntry : scanner) {
+			points.add(gson.fromJson(pointEntry.getValue().toString(), Point.class));
+		}
+		return points;
+	}
 
 	private  static void populatePointsInAccumulo(List<Point> points){
 		List<Mutation> mutations = new ArrayList<Mutation>();
@@ -249,40 +252,12 @@ public class AccumuloPivotTester extends PivotTester {
 		}
 		AccumuloConnectionManager.writeMutations(mutations, bwOpts, bwConfig, false);
 	}
-	
-	private static Pivot getClosestPivot(Point currentPoint, List<Pivot> pivots){ 
-		//Loop through each pivot and perform distance calculation
-		//It seems intuitive to get the pivot map for each pivot, since this is precomputed
-		//	However, this is significantly higher storage complexity.  This stategy is 
-		//	designed with scalability in mind. (i.e.: it would likely be faster to perform 
-		//	distance computations on each pivot (since the pivot list is small) than to 
-		//	retrieve and iterate through each map list)
-		Pivot closestPivot = null;
-		double shortestDistance = Double.MAX_VALUE;
-		for(Pivot pivot: pivots){
-			double temporaryDistance = PivotUtilities.getDistance(pivot, currentPoint);
-			if(temporaryDistance < shortestDistance){
-				closestPivot = pivot;
-				shortestDistance = temporaryDistance;
-			}
-		}
-		return closestPivot;
-	}
-	
-	private static Map<String,Double> getPrecomputedDistancesToQueryPoint(Point queryPoint, List<Pivot> pivots){
-		Map<String,Double> pivotDistancesToQueryPoint = new HashMap<String,Double>();
-		for(Pivot pivot: pivots){
-			pivotDistancesToQueryPoint.put(pivot.getPivotID(), 
-					PivotUtilities.getDistance(pivot, queryPoint));
-		}
-		return pivotDistancesToQueryPoint;
-	}
 
 	private static void init(String [] args) throws FileNotFoundException{
-		/*opts = new ClientOnRequiredTable();
+		opts = new ClientOnRequiredTable();
 		bwOpts = new BatchWriterOpts();
 		bwConfig = bwOpts.getBatchWriterConfig();
-		opts.parseArgs(AccumuloPivotTester.class.getName(), args, bwOpts, bwConfig);
+		opts.parseArgs(AccumuloPivotTester_Revised.class.getName(), args, bwOpts, bwConfig);
 
 		connectionManager = new AccumuloConnectionManager(opts);
 		connectionManager.connect();
@@ -292,110 +267,54 @@ public class AccumuloPivotTester extends PivotTester {
 
 		PivotIndexFactory indexFactory = new PivotIndexFactory();
 		IIndexingScheme index = indexFactory.getIndex(IIndexingScheme.PivotIndexType.ACCUMULO);
-		//System.out.println("Populating dataset...");
-		//long startPopulateTime = System.currentTimeMillis();
-		//Scanner pointScanner = populateAccumuloFromDisk(getValueFromConfigFile("dataset"));
-		//long endPopulateTime = System.currentTimeMillis();
-		//System.out.println("Time take to populate datasets: " + (endPopulateTime - startPopulateTime));
-		//System.exit(0);
-		//Calculate pivots
-
-		Scanner points = AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
+		
+		
+		Scanner pointsScanner = AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
+		List<Point> points = getPoints(pointsScanner);
 		//BatchScanner points = AccumuloConnectionManager.getBatchScanner("points");
-
-		//points.addScanIterator(new IteratorSetting(1,WholeRowIterator.class));
-		//points.fetchColumn(new Text("POINT"), new Text("POJO")); 
-		//points.setRanges(Collections.singleton(new Range()));
-		//Scanner points = AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
+		
+		
 		System.out.println("Selecting pivots.");
 		long startTime = System.currentTimeMillis();
-		List<Pivot> pivots = ((AccumuloPivotIndex)index).choosePivotsSparseSpatialIndex(points, bwConfig, true);
+		List<Pivot> pivots = ((PivotIndex)index).choosePivotsSparseSpatialIndex(points,true);
 		long pivotSelectionTime = System.currentTimeMillis();
 		System.out.println("Time take to select pivots: " + (pivotSelectionTime - startTime));
-
+		
 		//Get map values
 		System.out.println("Mapping pivots...");
-		//Scanner pivots =  AccumuloConnectionManager.queryAccumulo("points", "PIVOT", "POJO");
-		//BatchScanner pivots = AccumuloConnectionManager.getBatchScanner("points");
-		//pivots.setRanges(Collections.singleton(new Range()));
-		//pivots.addScanIterator(new IteratorSetting(1,WholeRowIterator.class));
-		//pivots.fetchColumn(new Text("PIVOT"), new Text("POJO")); 
+	
 		long beginPivotMapTime = System.currentTimeMillis();
-		((AccumuloPivotIndex)index).populatePivotMapValues(pivots, points, bwConfig);
+		((PivotIndex)index).populatePivotMapValues(pivots, points);
 		long endPivotMapTime = System.currentTimeMillis();
 		System.out.println("Time taken to map pivots: " + (endPivotMapTime - beginPivotMapTime));
-
-
+		
+		
 		//Get randomly selected point from newly created points
-		Point queryPoint = selectPointFromListRandomly(points, ((AccumuloPivotIndex)index).getDatasetSize());
+		Point queryPoint = selectPointFromListRandomly(points);
 		System.out.println("Query point: " + queryPoint.getX() + ", " + queryPoint.getY() + ".");
 
+		//Get distances map
+		Map<Double, Pivot> distanceMap = PivotIndex.getDistanceMap(points, pivots, queryPoint);
+		
 		//Issue range query
 		System.out.println("Performing range query...");
 		long rangeQueryBeforeTime = System.currentTimeMillis();
-		Scanner neighbors = ((AccumuloPivotIndex)index).rangeQueryAccumulo(points, pivots, queryPoint, 
-				Integer.parseInt(getValueFromConfigFile("range")), bwConfig);
+		
+		
+		
+		
+		List<Point> nearestNeighbors = ((PivotIndex)index).rangeQuery(points, pivots,queryPoint, distanceMap, 2.5);
 		long rangeQueryAfterTime = System.currentTimeMillis();
 		System.out.println("Time taken to perform range query: " + (rangeQueryAfterTime - rangeQueryBeforeTime) + " milliseconds." );
 		int neighborCounter = 0;
-		for(Entry<Key,Value> neighborEntry : neighbors) {
-			Point neighbor = gson.fromJson(neighborEntry.getValue().toString(), Point.class);
+		for(Point neighbor: nearestNeighbors){
 			System.out.println("Neighbor: " + neighbor.getX() + ", " + neighbor.getY() + 
 					".  Distance from query point: " + PivotUtilities.getDistance(queryPoint, neighbor) +
 					".");
-			neighborCounter++;
-			if(neighborCounter > 9){
+			if(nearestNeighbors.indexOf(neighbor) > 9){
 				break;
 			}
-		}*/
-
-
-		//Initialize global Accumulo variables
-		opts = new ClientOnRequiredTable();
-		bwOpts = new BatchWriterOpts();
-		bwConfig = bwOpts.getBatchWriterConfig();
-		opts.parseArgs(AccumuloPivotTester.class.getName(), args, bwOpts, bwConfig);
-		connectionManager = new AccumuloConnectionManager(opts);
-		connectionManager.connect();
-
-		PivotIndexFactory indexFactory = new PivotIndexFactory();
-		IIndexingScheme index = indexFactory.getIndex(IIndexingScheme.PivotIndexType.ACCUMULO);
-
-		//Verify table exists
-		AccumuloConnectionManager.prepareTablesForTest(ImmutableList.of("points", "pointsIndex"));
-		AccumuloConnectionManager.verifyTableExistence(opts.getTableName());
-
-		try {
-			//Load into Accumulo
-			populateAccumuloFromDisk(getValueFromConfigFile("dataset"));
-			//Get points
-			Scanner points = AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO");
-			//Get pivots
-			List<Pivot> pivots = ((AccumuloPivotIndex)index).choosePivotsSparseSpatialIndex(points, bwConfig, true);
-			//Populate pivot map values into pivot index table
-			((AccumuloPivotIndex)index).populatePivotMapValues(pivots, points, bwConfig);
-			Point queryPoint = selectPointFromListRandomly();
-			Map<String,Double> distancesToPivotsFromQueryPoint = getPrecomputedDistancesToQueryPoint(queryPoint, pivots);
-			long start = System.currentTimeMillis();
-			//Load into kafka topic, "pivot_points"
-			//sendPointsToKafka(points, TOPIC_NAME);
-			//Begin range query
-			for(Entry<Key,Value> pointEntry : AccumuloConnectionManager.queryAccumulo("points", "POINT", "POJO")){
-				Point point = gson.fromJson(pointEntry.getValue().toString(), Point.class);
-				Pivot closestPivot = getClosestPivot(point, pivots);
-				double distance1 = point.getDistancesToPivot().get(closestPivot.getPivotID());
-				double distance2 = getPrecomputedDistancesToQueryPoint(queryPoint, pivots);
-				
-			}
-			
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
-
-
-
-
 	}
 
 	public static void main(String [] args){
