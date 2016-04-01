@@ -8,10 +8,8 @@ import backtype.storm.topology.base.BaseBasicBolt;
 import backtype.storm.tuple.Tuple;
 
 public class PivotRefineBolt extends BaseBasicBolt{
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = -979091566418701095L;
+	
 	private static double range;
 	private static Point queryPoint;
 	private static int recordCounter = 0;
@@ -24,22 +22,20 @@ public class PivotRefineBolt extends BaseBasicBolt{
 
 	@Override
 	public void execute(Tuple input, BasicOutputCollector collector) {
-		if(startTime == 0){
-			startTime = System.currentTimeMillis();
-		}
+//		if(startTime == 0){
+//			startTime = System.currentTimeMillis();
+//		}
 		Point candidate = (Point) input.getValueByField("point");
 		double actualDistance = PivotUtilities.getDistance(candidate, queryPoint);
 		if(actualDistance <= range){
+			if(startTime == 0){
+				startTime = System.currentTimeMillis();
+			}
 			recordCounter++;
 			//System.out.println("Records: " + recordCounter);
-			if(recordCounter == 120){
+			if(recordCounter  == 8){
 				System.out.println("Time taken: " + (System.currentTimeMillis() -startTime));
 			}
-			//System.out.println("Pivot indexing scheme success: " + recordCounter);
-			/*if(recordCounter == 11649){
-				System.out.println("Time taken: " + (System.currentTimeMillis() -PivotFilterBolt.startTime));
-				System.out.println("Pivot indexing scheme success: " + recordCounter);
-			}*/
 		}
 	}
 

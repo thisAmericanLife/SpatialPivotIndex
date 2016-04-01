@@ -1,16 +1,13 @@
-package usace.army.mil.erdc.pivots.storm;
+package usace.army.mil.erdc.pivots.storm.knn;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.apache.accumulo.core.client.Connector;
-import org.apache.accumulo.core.client.Scanner;
-import org.apache.accumulo.core.data.Key;
-import org.apache.accumulo.core.data.Value;
+
+import com.google.gson.Gson;
 
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
-import usace.army.mil.erdc.pivots.accumulo.AccumuloConnectionManager;
 import usace.army.mil.erdc.pivots.models.Pivot;
 import usace.army.mil.erdc.pivots.models.Point;
 import backtype.storm.topology.BasicOutputCollector;
@@ -20,21 +17,10 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 
-public class PivotFilterBolt extends BaseBasicBolt{
-   
-	private static final long serialVersionUID = 976301149798278202L;
-	private static List<Pivot> pivots;
-	private static Map<String,Double> pivotMap;
-	private static double range = 0.0;
-	private static Connector connector;
-	public static long startTime;
-	private static boolean processingStarted = false;
-	public PivotFilterBolt(List<Pivot> pivots, Map<String,Double> pivotMap, Connector connector, double range){
-		PivotFilterBolt.connector = connector;
-		PivotFilterBolt.pivots = pivots;
-		PivotFilterBolt.pivotMap = pivotMap;
-		PivotFilterBolt.range = range;
-	}
+public class PivotKnnFilterBolt extends BaseBasicBolt{
+
+	final private static Gson gson = new Gson();
+	private static final long serialVersionUID = -7395141361362238802L;
 
 	private Pivot getClosestPivot(Point currentPoint){ 
 		//Loop through each pivot and perform distance calculation
@@ -45,7 +31,7 @@ public class PivotFilterBolt extends BaseBasicBolt{
 		//	retrieve and iterate through each map list)
 		Pivot closestPivot = null;
 		double shortestDistance = Double.MAX_VALUE;
-		for(Pivot pivot: pivots){
+		for(Pivot pivot: PivotKnnTopology.getPivots()){
 			double temporaryDistance = PivotUtilities.getDistance(pivot, currentPoint);
 			if(temporaryDistance < shortestDistance){
 				closestPivot = pivot;
@@ -54,26 +40,22 @@ public class PivotFilterBolt extends BaseBasicBolt{
 		}
 		return closestPivot;
 	}
-
+	
 	private double getPrecomputedDistance(Point point, Pivot pivot){
 		return point.getDistancesToPivot().get(pivot.getPivotID());
 	}
-
-
+	
 	@Override
 	public void execute(Tuple input, BasicOutputCollector collector) {
-		if(! PivotFilterBolt.processingStarted){
-			PivotFilterBolt.startTime = System.currentTimeMillis();
-			PivotFilterBolt.processingStarted = true;
-		}
-		Point point = (Point)input.getValueByField("point");
+		Point point = gson.fromJson(input.getValueByField("str").toString(), Point.class);
 		Pivot pivot = getClosestPivot(point);
-		double queryPointToPivotDist = pivotMap.get(pivot.getPivotID());
+		double queryPointToPivotDist = PivotKnnTopology.getPivotMap().get(pivot.getPivotID());
 
 		double currentPointToPivotDist = getPrecomputedDistance(point, pivot);
-		if(range >= queryPointToPivotDist + currentPointToPivotDist){
+		if((PivotKnnTopology.getRange() * point.getNumStormIterations())>= queryPointToPivotDist + currentPointToPivotDist){
 			collector.emit(new Values(point));
-		} 
+		}
+		
 	}
 
 	@Override

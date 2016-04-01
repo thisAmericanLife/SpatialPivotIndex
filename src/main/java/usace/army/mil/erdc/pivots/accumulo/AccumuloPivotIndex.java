@@ -38,6 +38,7 @@ import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.vividsolutions.jts.algorithm.ConvexHull;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.geomgraph.Quadrant;
 
 import flexjson.JSONDeserializer;
 import flexjson.JSONSerializer;
@@ -55,6 +56,7 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 	private BatchWriterOpts bwOpts;
 	private Scanner pointScanner;
 	private int numPivots = 0;
+
 
 	public AccumuloPivotIndex(){
 		super();
@@ -330,7 +332,19 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 		//Convert to Array, as this works better with the convex hull computation
 		System.out.println("Dataset size: " + getDatasetSize());
 		ConvexHull convexHull = new ConvexHull(PivotUtilities.convertPointListToCoordArray(points, getDatasetSize()), new GeometryFactory());
+		setEnvelopeValues(PivotUtilities.convertCoordArrayToPointList(convexHull.getConvexHull()
+				.getEnvelope().getCoordinates()), convexHull.getConvexHull().getCentroid());
 		return PivotUtilities.convertCoordArrayToPointList(convexHull.getConvexHull().getCoordinates());
+	}
+
+	private List<Mutation> getQuadrantMutations(){
+		List<Mutation> mutations = new ArrayList<Mutation>();
+		mutations.add(AccumuloConnectionManager.getMutation("!!!QUADRANT", "UPPER", "LEFT", gson.toJson(upperLeft, Quadrant.class)));
+		mutations.add(AccumuloConnectionManager.getMutation("!!!QUADRANT", "UPPER", "RIGHT", gson.toJson(upperRight, Quadrant.class)));
+		mutations.add(AccumuloConnectionManager.getMutation("!!!QUADRANT", "LOWER", "LEFT", gson.toJson(lowerLeft, Quadrant.class)));
+		mutations.add(AccumuloConnectionManager.getMutation("!!!QUADRANT", "LOWER", "RIGHT", gson.toJson(lowerRight, Quadrant.class)));
+		mutations.add(AccumuloConnectionManager.getMutation("!!!QUADRANT", "CENTROID", "POINT", gson.toJson(centroid, Point.class)));
+		return mutations;
 	}
 
 	public void populatePivotMapValues_orig(List<Pivot> pivots, Scanner points, BatchWriterConfig bwConfig){
@@ -341,18 +355,19 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 			for(Pivot pivot: pivots){
 				for(Entry<Key,Value> pointEntrySet : points){
 					Point point = gson.fromJson(pointEntrySet.getValue().toString(), Point.class);
+					getQuadrant(point).incrememntObservations();
 					//PivotUtilities.getDistance(pivot, point);
 					PivotMapEntry entry = new PivotMapEntry("entry_" + entryCounter, pivot.getPivotID(), point.getUID(), 
 							PivotUtilities.getDistance(pivot, point));
 					mutations.add(
 							AccumuloConnectionManager.getMutation(
 									String.valueOf(new String(
-									new StringBuilder()
-									.append(pivot.getPivotID())
-									.append("_")
-									.append(point.getUID()).toString()).hashCode()),
-									point.getUID(),
-									String.valueOf(entry.getDistance()), "DISTANCE"));
+											new StringBuilder()
+											.append(pivot.getPivotID())
+											.append("_")
+											.append(point.getUID()).toString()).hashCode()),
+											point.getUID(),
+											String.valueOf(entry.getDistance()), "DISTANCE"));
 
 					entryCounter++;
 					batchWriterIndex++;
@@ -372,9 +387,12 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
+		upperLeft.setDensity(upperLeft.getDensity());
+		upperRight.setDensity(upperRight.getDensity());
+		lowerLeft.setDensity(lowerLeft.getDensity());
+		lowerRight.setDensity(lowerRight.getDensity());
 	}
-	
+
 	public void populatePivotMapValues(List<Pivot> pivots, Scanner points, BatchWriterConfig bwConfig){
 		try {
 			List<Mutation> mutations = new ArrayList<Mutation>();
@@ -382,6 +400,7 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 			int batchWriterIndex = 0;
 			for(Entry<Key,Value> pointEntrySet : points){
 				Point point = gson.fromJson(pointEntrySet.getValue().toString(), Point.class);
+				getQuadrant(point).incrememntObservations();
 				Map<String,Double> distances = new HashMap<String,Double>();
 				for(Pivot pivot: pivots){
 					distances.put(pivot.getPivotID(), PivotUtilities.getDistance(pivot, point));
@@ -397,9 +416,12 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 					batchWriterIndex = 0;
 				}
 			}
-			if(batchWriterIndex > 0){
-				AccumuloConnectionManager.writeMutations(mutations, "points", bwConfig);
-			}
+			upperLeft.setDensity(upperLeft.getDensity());
+			upperRight.setDensity(upperRight.getDensity());
+			lowerLeft.setDensity(lowerLeft.getDensity());
+			lowerRight.setDensity(lowerRight.getDensity());
+			mutations.addAll(getQuadrantMutations());
+			AccumuloConnectionManager.writeMutations(mutations, "points", bwConfig);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -472,7 +494,7 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 					Pivot pivot = (Pivot)pointFactory.getPoint(IPoint.PointType.PIVOT, point);
 					String pivotString = new StringBuilder().append("pivot_")
 							.append(String.valueOf(id)).toString();
-				//	pivot.setPivotID(pivotString.getBytes("UTF-8").toString());
+					//	pivot.setPivotID(pivotString.getBytes("UTF-8").toString());
 					pivot.setPivotID(pivotString);
 					pivots.add(pivot); 
 					id++;

@@ -12,7 +12,7 @@ import backtype.storm.tuple.Values;
 
 public class PivotRangeQueryBolt extends BaseBasicBolt{
 
-	private static final long serialVersionUID = 1L;       
+	private static final long serialVersionUID = -3101183473562624589L;
 	final private static Gson gson = new Gson();
 
 	@Override

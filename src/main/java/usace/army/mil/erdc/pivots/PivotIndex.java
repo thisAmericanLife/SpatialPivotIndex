@@ -44,11 +44,11 @@ public class PivotIndex implements IIndexingScheme {
 	private double minY;
 	private double maxX;
 	private double maxY;
-	private static Point centroid;
-	private static Quadrant upperLeft;
-	private static Quadrant upperRight;
-	private static Quadrant lowerLeft;
-	private static Quadrant lowerRight;
+	protected static Point centroid;
+	protected static Quadrant upperLeft;
+	protected static Quadrant upperRight;
+	protected static Quadrant lowerLeft;
+	protected static Quadrant lowerRight;
 	
 	public PivotIndex(){
 		pointFactory = new PointFactory();
@@ -57,7 +57,7 @@ public class PivotIndex implements IIndexingScheme {
 	//From the formula k = d * Pi * r^2, we can solve for r to derive the value of 
 	//	initial range query in the series of successive calls to solve kNN.
 	//	Otherwise stated, this become r = sqrt(k / d * Pi)
-	private static double deriveRange(int k, double density){
+	public static double deriveRange(int k, double density){
 		System.out.println("density: " + density);
 		System.out.println("Math.PI: " + Math.PI);
 		System.out.println("density * Math.PI: " + (density * Math.PI));
@@ -229,7 +229,7 @@ public class PivotIndex implements IIndexingScheme {
 		lowerLeft = new Quadrant(getQuadrantArea(lowerLeftCoordinateArray));
 	}
 	
-	private static Quadrant getQuadrant(Point point){
+	protected static Quadrant getQuadrant(Point point){
 		double x = point.getX();
 		double y = point.getY();
 		
@@ -252,7 +252,7 @@ public class PivotIndex implements IIndexingScheme {
 	}
 	
 	//(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy), (minx, miny). 
-	private void setEnvelopeValues(List<Point> points, 
+	protected void setEnvelopeValues(List<Point> points, 
 			com.vividsolutions.jts.geom.Point centroidPoint){
 		minX = points.get(0).getX();
 		minY = points.get(0).getY();

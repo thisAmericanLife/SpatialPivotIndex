@@ -31,13 +31,13 @@ public class SimpleApp {
 		String environment = "local";
 		System.setProperty("hadoop.home.dir", "/home/ktyler/Documents/spark/hadoop-common-2.2.0-bin-master");
 		// System.setProperty("hadoop.home.dir", "/usr/local/hadoop");
-		SparkConf sparkConf = new SparkConf().setAppName("Simple Application");
+		SparkConf sparkConf = new SparkConf().setAppName("Simple Application 2");
 		sparkConf.setMaster("spark://drogba:7077");  
 
 		if (environment.equals("local")) {
-			sparkConf.setJars(new String[]{"C:\\Users\\RDTECRS9\\workspace\\strider\\target\\strider-0.0.1-SNAPSHOT.jar"});                       
+			sparkConf.setJars(new String[]{"/home/ktyler/Documents/strider/Pivots/target/Pivots-0.0.1-SNAPSHOT.jar"});                       
 		} else {
-			sparkConf.setJars(new String[]{"/opt/spark-1.6.0-bin-without-hadoop/jars/strider-0.0.1-SNAPSHOT.jar"});
+			sparkConf.setJars(new String[]{"/opt/spark-1.6.0-bin-without-hadoop/jars/Pivots-0.0.1-SNAPSHOT.jar"});
 		}
 		sparkConf.setExecutorEnv("ACCUMULO_CONF_DIR", "/opt/accumulo-1.7.0/conf");
 		sparkConf.setExecutorEnv("SPARK_EXECUTOR_INSTANCES", "6");

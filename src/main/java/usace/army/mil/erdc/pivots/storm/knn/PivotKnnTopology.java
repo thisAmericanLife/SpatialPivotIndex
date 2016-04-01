@@ -1,4 +1,4 @@
-package usace.army.mil.erdc.pivots.storm;
+package usace.army.mil.erdc.pivots.storm.knn;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,33 +15,42 @@ import org.apache.accumulo.core.client.ZooKeeperInstance;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Value;
 
-import backtype.storm.Config;
-import backtype.storm.LocalCluster;
-import backtype.storm.StormSubmitter;
-import backtype.storm.generated.AlreadyAliveException;
-import backtype.storm.generated.InvalidTopologyException;
-import backtype.storm.generated.StormTopology;
-import backtype.storm.spout.SchemeAsMultiScheme;
-import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.utils.Utils;
 import storm.kafka.KafkaSpout;
 import storm.kafka.SpoutConfig;
 import storm.kafka.StringScheme;
 import storm.kafka.ZkHosts;
+import usace.army.mil.erdc.Pivots.models.Quadrant;
+import usace.army.mil.erdc.pivots.PivotIndex;
 import usace.army.mil.erdc.pivots.accumulo.AccumuloConnectionManager;
 import usace.army.mil.erdc.pivots.models.Pivot;
 import usace.army.mil.erdc.pivots.models.Point;
+import usace.army.mil.erdc.pivots.storm.PivotFilterBolt;
+import usace.army.mil.erdc.pivots.storm.PivotRangeQueryBolt;
+import usace.army.mil.erdc.pivots.storm.PivotRefineBolt;
+import backtype.storm.Config;
+import backtype.storm.LocalCluster;
+import backtype.storm.generated.StormTopology;
+import backtype.storm.spout.SchemeAsMultiScheme;
+import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.utils.Utils;
 
 import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 
-public class PivotTopology {
+public class PivotKnnTopology {
 	private static final String JAR_PATH = "/home/ktyler/Documents/strider/Pivots/target/Pivots-0.0.1-SNAPSHOT.jar";
 	private static final String INSTANCE_NAME = "strider";
 	private static final String ZOOKEEPERS = "schweinsteiger:2181,neuer:2181,neymar:2181";
 	private static final String ACCUMULO_USER = "root";
 	private static final String ACCUMULO_PASSWORD = "amledd";
 	final private static Gson gson = new Gson();
+	
+	private static int NUM_NEIGHBORS_FOUND = 0;
+	private static int NUM_NEIGHBORS_TO_FIND = 0;
+	private static double RANGE = 0.0;
+	private static List<Pivot> PIVOTS;
+	private static Map<String,Double> PIVOT_MAP;
+	private static Point QUERY_POINT;
 
 	public static void main(String [] args){
 		initTopology();
@@ -90,7 +99,7 @@ public class PivotTopology {
 		}               
 	}
 	
-	private static Point getQueryPoint(){
+	private static Point getPoint(){
 		Point point = new Point();
 		point.setUID("point_1000011");
 		point.setX(40.190331);
@@ -110,11 +119,11 @@ public class PivotTopology {
 		return distance;
 	}
 	
-	private static Map<String,Double> getPivotMap(List<Pivot> pivots, Point queryPoint, Connector connector){
+	private static Map<String,Double> getPivotMap(Connector connector){
 		Map<String,Double> pivotDistancesToQueryPoint = new HashMap<String,Double>();
-		for(Pivot pivot: pivots){
+		for(Pivot pivot: PIVOTS){
 			pivotDistancesToQueryPoint.put(pivot.getPivotID(), 
-					getPrecomputedDistanceFromAccumulo(queryPoint, pivot, connector));
+					getPrecomputedDistanceFromAccumulo(QUERY_POINT, pivot, connector));
 		}
 		return pivotDistancesToQueryPoint;
 	}
@@ -138,14 +147,60 @@ public class PivotTopology {
 		}
 		return connector;
 	}
+	
+	private static Quadrant getQuadrant(String cf, String cq, Connector connector){
+		Scanner scanner = AccumuloConnectionManager.queryAccumuloWithFilter("points", 
+				"!!!QUADRANT", cf, cq, connector);
+		Quadrant quadrant = null;
+		for(Entry<Key,Value> scannerEntry : scanner) {
+			quadrant = gson.fromJson(scannerEntry.getValue().toString(), Quadrant.class);
+				break;
+		}
+		return quadrant;
+	}
+	
+	private static String getQuadrant(Point point, Point centroid){
+		double x = point.getX();
+		double y = point.getY();
+		
+		if(x <= centroid.getX() && y >= centroid.getY()){
+			return "UPPER LEFT";
+		} else if(x >= centroid.getX() && y >= centroid.getY()){
+			return "UPPER RIGHT";
+		} else if(x >= centroid.getX() && y <= centroid.getY()){
+			return "LOWER RIGHT";
+		} else{
+			return "LOWER LEFT";
+		}
+	}
+	
+	private static Point getCentroid(Connector connector){
+		Scanner scanner = AccumuloConnectionManager.queryAccumuloWithFilter("points", 
+				"!!!QUADRANT", "CENTROID", "POINT", connector);
+		Point centroid = null;
+		for(Entry<Key,Value> scannerEntry : scanner) {
+			centroid = gson.fromJson(scannerEntry.getValue().toString(), Point.class);
+				break;
+		}
+		return centroid;
+	}
+	
+	private static double getInitialRange(Connector connector){
+		Point centroid = getCentroid(connector);
+		String [] delimitedColumns = getQuadrant(QUERY_POINT, centroid).split(" ");
+		return PivotIndex.deriveRange(NUM_NEIGHBORS_TO_FIND, 
+				getQuadrant(delimitedColumns[0], delimitedColumns[1], connector).getDensity());
+	}
 
 	private static StormTopology createTopology(String topic, Connector connector)
 	{
 		//Pivot-specific variables
-		double range = 5.45;
-		Point queryPoint = getQueryPoint();
-		List<Pivot> pivots = getPivots(connector);
-		Map<String,Double> pivotMap = getPivotMap(pivots, queryPoint, connector);
+		PIVOTS = getPivots(connector);
+		NUM_NEIGHBORS_TO_FIND = 5;
+		QUERY_POINT = getPoint();
+		PIVOT_MAP = getPivotMap(connector);
+		RANGE = getInitialRange(connector);
+		System.out.println("Beginning query with initial range: " + RANGE);
 		//Storm and Kafka variables 
 		SpoutConfig kafkaConf = new SpoutConfig(new ZkHosts(getZooKeeperHostsString()), topic, "/opt/zookeeper-3.4.6","Pivot-Kafka-Spout");
 		kafkaConf.scheme = new SchemeAsMultiScheme(new StringScheme());
@@ -153,10 +208,36 @@ public class PivotTopology {
 		
 		TopologyBuilder builder = new TopologyBuilder();         
 		builder.setSpout("point_spout", new KafkaSpout(kafkaConf),4);
-		builder.setBolt("range_query", new PivotRangeQueryBolt(), 24).shuffleGrouping("point_spout");
-		builder.setBolt("filter_bolt", new PivotFilterBolt(pivots, pivotMap, connector, range), 64).shuffleGrouping("range_query");
-		builder.setBolt("refine_bolt", new PivotRefineBolt(queryPoint, range),12).shuffleGrouping("filter_bolt");
+		builder.setBolt("filter_bolt", new PivotKnnFilterBolt(), 24).shuffleGrouping("point_spout").shuffleGrouping("refine_bolt");
+		builder.setBolt("refine_bolt", new PivotKnnRefineBolt(), 24).shuffleGrouping("filter_bolt");
+		//builder.setBolt("filter_bolt", new PivotFilterBolt(pivots, pivotMap, connector, range), 64).shuffleGrouping("range_query");
+		//builder.setBolt("refine_bolt", new PivotRefineBolt(queryPoint, range),12).shuffleGrouping("filter_bolt");
 
 		return builder.createTopology();
+	}
+
+	
+	//Getters and setters
+	public static int getNumNeighborsFound() {
+		return NUM_NEIGHBORS_FOUND;
+	}
+	public static void incrementNumNeighborsFound() {
+		NUM_NEIGHBORS_FOUND++;
 	}  
+	public static double getRange() {
+		return RANGE;
+	}
+	public static List<Pivot> getPivots() {
+		return PIVOTS;
+	}
+	public static Map<String,Double> getPivotMap() {
+		return PIVOT_MAP;
+	}
+	public static Point getQueryPoint() {
+		return QUERY_POINT;
+	}
+	public static int getNumNeighborsToFind() {
+		return NUM_NEIGHBORS_TO_FIND;
+	}
+
 }

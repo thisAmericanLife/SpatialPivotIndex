@@ -384,7 +384,7 @@ public class AccumuloPivotTester extends PivotTester {
 				Point point = gson.fromJson(pointEntry.getValue().toString(), Point.class);
 				Pivot closestPivot = getClosestPivot(point, pivots);
 				double distance1 = point.getDistancesToPivot().get(closestPivot.getPivotID());
-				double distance2 = getPrecomputedDistancesToQueryPoint(queryPoint, pivots);
+				//double distance2 = getPrecomputedDistancesToQueryPoint(queryPoint, pivots);
 				
 			}
 			

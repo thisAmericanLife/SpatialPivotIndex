@@ -7,6 +7,7 @@ public class Point implements IPoint {
 
 	private double x;
 	private double y;
+	private int numStormIterations = 1;
 	private Map<String,Double> distancesToPivot;
 	protected String UID;
 	/** Numbers within this amount are considered to be the same. */
@@ -89,6 +90,16 @@ public class Point implements IPoint {
 	}
 	public void setDistancesToPivot(Map<String,Double> distancesToPivot) {
 		this.distancesToPivot = distancesToPivot;
+	}
+
+	public int getNumStormIterations() {
+		return numStormIterations;
+	}
+	public void setNumStormIterations(int numStormIterations) {
+		this.numStormIterations = numStormIterations;
+	}
+	public void incrememntNumStormIterations() {
+		this.numStormIterations++;
 	}
 
 	public static Comparator<IPoint> xy_sorter =
