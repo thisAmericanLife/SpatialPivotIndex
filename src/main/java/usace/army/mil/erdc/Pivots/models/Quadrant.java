@@ -25,8 +25,11 @@ public class Quadrant {
 	public void setNumObservations(int numObservations) {
 		this.numObservations = numObservations;
 	}
-	public double getDensity() {
-		return density == 0.0 ? numObservations / area : density;
+	public double calculateDensity() {
+		return numObservations / area;
+	}
+	public double getDensity(){
+		return density;
 	}
 	public void setDensity(double density) {
 		this.density = density;

@@ -40,10 +40,10 @@ public class PivotIndex implements IIndexingScheme {
 	//		Add convex hull to avoid n^2 index creation
 	
 	protected static PointFactory pointFactory;
-	private double minX;
-	private double minY;
-	private double maxX;
-	private double maxY;
+	protected double minX;
+	protected double minY;
+	protected double maxX;
+	protected double maxY;
 	protected static Point centroid;
 	protected static Quadrant upperLeft;
 	protected static Quadrant upperRight;
@@ -197,6 +197,7 @@ public class PivotIndex implements IIndexingScheme {
 	}
 	
 	private void instantiateQuadrants(){
+		System.out.println("Instantiate quadrants...");
 		Coordinate [] upperLeftCoordinateArray = new Coordinate[5], upperRightCoordinateArray = new Coordinate[5],
 		lowerRightCoordinateArray = new Coordinate[5], lowerLeftCoordinateArray= new Coordinate[5];
 		
@@ -254,10 +255,12 @@ public class PivotIndex implements IIndexingScheme {
 	//(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy), (minx, miny). 
 	protected void setEnvelopeValues(List<Point> points, 
 			com.vividsolutions.jts.geom.Point centroidPoint){
+		System.out.println("In set envelope values...");
 		minX = points.get(0).getX();
 		minY = points.get(0).getY();
 		maxX = points.get(1).getX();
 		maxY = points.get(2).getY();
+		System.out.println("Centroid values: " + centroidPoint.getX());
 		centroid = new Point(centroidPoint.getX(), centroidPoint.getY());
 		//Create quadrants from minimum bounding box of convex hull
 		instantiateQuadrants();
@@ -317,10 +320,10 @@ public class PivotIndex implements IIndexingScheme {
 			}
 		}
 		//Calculate density for each quadrant
-		upperLeft.setDensity(upperLeft.getDensity());
-		upperRight.setDensity(upperRight.getDensity());
-		lowerLeft.setDensity(lowerLeft.getDensity());
-		lowerRight.setDensity(lowerRight.getDensity());
+		upperLeft.setDensity(upperLeft.calculateDensity());
+		upperRight.setDensity(upperRight.calculateDensity());
+		lowerLeft.setDensity(lowerLeft.calculateDensity());
+		lowerRight.setDensity(lowerRight.calculateDensity());
 		return pivots;
 	}
 

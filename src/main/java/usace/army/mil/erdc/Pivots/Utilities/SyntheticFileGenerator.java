@@ -53,11 +53,15 @@ public class SyntheticFileGenerator {
 	}
 
 	public static void main(String [] args){
-		generateFile("/home/ktyler/Documents/strider/synthetic_data/5k.txt", 2500);
+		/*generateFile("/home/ktyler/Documents/strider/synthetic_data/5k.txt", 2500);
 		generateFile("/home/ktyler/Documents/strider/synthetic_data/5k.txt", 5000);
 		generateFile("/home/ktyler/Documents/strider/synthetic_data/10k.txt", 10000);
 		generateFile("/home/ktyler/Documents/strider/synthetic_data/50k.txt", 50000);
 		generateFile("/home/ktyler/Documents/strider/synthetic_data/70k.txt", 70000);
-		generateFile("/home/ktyler/Documents/strider/synthetic_data/90k.txt", 90000);
+		generateFile("/home/ktyler/Documents/strider/synthetic_data/90k.txt", 90000);*/
+		
+		generateFile("/home/ktyler/Documents/strider/synthetic_data/250k.txt", 250000);
+		generateFile("/home/ktyler/Documents/strider/synthetic_data/500k.txt", 500000);
+		generateFile("/home/ktyler/Documents/strider/synthetic_data/750k.txt", 750000);
 	}
 }

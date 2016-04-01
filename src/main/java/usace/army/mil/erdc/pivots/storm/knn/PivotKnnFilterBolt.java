@@ -10,6 +10,7 @@ import com.google.gson.Gson;
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
 import usace.army.mil.erdc.pivots.models.Pivot;
 import usace.army.mil.erdc.pivots.models.Point;
+import usace.army.mil.erdc.pivots.storm.PivotFilterBolt;
 import backtype.storm.topology.BasicOutputCollector;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseBasicBolt;
@@ -21,6 +22,15 @@ public class PivotKnnFilterBolt extends BaseBasicBolt{
 
 	final private static Gson gson = new Gson();
 	private static final long serialVersionUID = -7395141361362238802L;
+	private static List<Pivot> pivots;
+	private static Map<String,Double> pivotMap;
+	private static double range = 0.0;
+	static long startTime = 0;
+	public PivotKnnFilterBolt(List<Pivot> pivots, Map<String,Double> pivotMap, double range){
+		PivotKnnFilterBolt.pivots = pivots;
+		PivotKnnFilterBolt.pivotMap = pivotMap;
+		PivotKnnFilterBolt.range = range;
+	}
 
 	private Pivot getClosestPivot(Point currentPoint){ 
 		//Loop through each pivot and perform distance calculation
@@ -29,9 +39,10 @@ public class PivotKnnFilterBolt extends BaseBasicBolt{
 		//	designed with scalability in mind. (i.e.: it would likely be faster to perform 
 		//	distance computations on each pivot (since the pivot list is small) than to 
 		//	retrieve and iterate through each map list)
+		
 		Pivot closestPivot = null;
 		double shortestDistance = Double.MAX_VALUE;
-		for(Pivot pivot: PivotKnnTopology.getPivots()){
+		for(Pivot pivot: pivots){
 			double temporaryDistance = PivotUtilities.getDistance(pivot, currentPoint);
 			if(temporaryDistance < shortestDistance){
 				closestPivot = pivot;
@@ -47,12 +58,21 @@ public class PivotKnnFilterBolt extends BaseBasicBolt{
 	
 	@Override
 	public void execute(Tuple input, BasicOutputCollector collector) {
-		Point point = gson.fromJson(input.getValueByField("str").toString(), Point.class);
+		if(startTime== 0){
+			PivotKnnFilterBolt.startTime = System.currentTimeMillis();
+		}
+		Point point;
+		if(! input.contains("str")){
+			point = (Point) input.getValueByField("point");
+		} else{
+			point = gson.fromJson(input.getValueByField("str").toString(), Point.class);
+		}
+		//System.out.println("Got a point in filter: " + PivotKnnFilterBolt.counter);
 		Pivot pivot = getClosestPivot(point);
-		double queryPointToPivotDist = PivotKnnTopology.getPivotMap().get(pivot.getPivotID());
+		double queryPointToPivotDist = pivotMap.get(pivot.getPivotID());
 
 		double currentPointToPivotDist = getPrecomputedDistance(point, pivot);
-		if((PivotKnnTopology.getRange() * point.getNumStormIterations())>= queryPointToPivotDist + currentPointToPivotDist){
+		if((range * point.getNumStormIterations())>= queryPointToPivotDist + currentPointToPivotDist){
 			collector.emit(new Values(point));
 		}
 		

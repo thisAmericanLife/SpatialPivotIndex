@@ -32,6 +32,7 @@ public class PivotRefineBolt extends BaseBasicBolt{
 				startTime = System.currentTimeMillis();
 			}
 			recordCounter++;
+			System.out.println("Winner");
 			//System.out.println("Records: " + recordCounter);
 			if(recordCounter  == 8){
 				System.out.println("Time taken: " + (System.currentTimeMillis() -startTime));

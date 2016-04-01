@@ -92,9 +92,9 @@ public class PivotTopology {
 	
 	private static Point getQueryPoint(){
 		Point point = new Point();
-		point.setUID("point_1000011");
-		point.setX(40.190331);
-		point.setY(-82.669468);
+		point.setUID("point_1012");
+		point.setX(25.062207977192266);
+		point.setY(-114.01534692006405);
 		return point;
 	}
 	
@@ -153,8 +153,7 @@ public class PivotTopology {
 		
 		TopologyBuilder builder = new TopologyBuilder();         
 		builder.setSpout("point_spout", new KafkaSpout(kafkaConf),4);
-		builder.setBolt("range_query", new PivotRangeQueryBolt(), 24).shuffleGrouping("point_spout");
-		builder.setBolt("filter_bolt", new PivotFilterBolt(pivots, pivotMap, connector, range), 64).shuffleGrouping("range_query");
+		builder.setBolt("filter_bolt", new PivotFilterBolt(pivots, pivotMap, connector, range), 64).shuffleGrouping("point_spout");
 		builder.setBolt("refine_bolt", new PivotRefineBolt(queryPoint, range),12).shuffleGrouping("filter_bolt");
 
 		return builder.createTopology();

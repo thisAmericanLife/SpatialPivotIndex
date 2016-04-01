@@ -9,6 +9,8 @@ import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Value;
 
+import com.google.gson.Gson;
+
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
 import usace.army.mil.erdc.pivots.accumulo.AccumuloConnectionManager;
 import usace.army.mil.erdc.pivots.models.Pivot;
@@ -26,11 +28,10 @@ public class PivotFilterBolt extends BaseBasicBolt{
 	private static List<Pivot> pivots;
 	private static Map<String,Double> pivotMap;
 	private static double range = 0.0;
-	private static Connector connector;
 	public static long startTime;
+	final private static Gson gson = new Gson();
 	private static boolean processingStarted = false;
 	public PivotFilterBolt(List<Pivot> pivots, Map<String,Double> pivotMap, Connector connector, double range){
-		PivotFilterBolt.connector = connector;
 		PivotFilterBolt.pivots = pivots;
 		PivotFilterBolt.pivotMap = pivotMap;
 		PivotFilterBolt.range = range;
@@ -66,7 +67,7 @@ public class PivotFilterBolt extends BaseBasicBolt{
 			PivotFilterBolt.startTime = System.currentTimeMillis();
 			PivotFilterBolt.processingStarted = true;
 		}
-		Point point = (Point)input.getValueByField("point");
+		Point point = gson.fromJson(input.getValueByField("str").toString(), Point.class);
 		Pivot pivot = getClosestPivot(point);
 		double queryPointToPivotDist = pivotMap.get(pivot.getPivotID());
 

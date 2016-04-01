@@ -1,10 +1,5 @@
 package usace.army.mil.erdc.pivots.accumulo;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -12,16 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.Map.Entry;
-import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.accumulo.core.cli.BatchWriterOpts;
 import org.apache.accumulo.core.client.BatchScanner;
-import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.BatchWriterConfig;
-import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.client.IteratorSetting;
-import org.apache.accumulo.core.client.MutationsRejectedException;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Mutation;
@@ -29,19 +20,12 @@ import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.iterators.user.IntersectingIterator;
 import org.apache.hadoop.io.Text;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
-
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.vividsolutions.jts.algorithm.ConvexHull;
-import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.GeometryFactory;
-import com.vividsolutions.jts.geomgraph.Quadrant;
+import usace.army.mil.erdc.Pivots.models.Quadrant;
 
-import flexjson.JSONDeserializer;
-import flexjson.JSONSerializer;
 import usace.army.mil.erdc.Pivots.Utilities.PivotUtilities;
 import usace.army.mil.erdc.pivots.PivotIndex;
 import usace.army.mil.erdc.pivots.models.CandidatePoint;
@@ -332,12 +316,14 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 		//Convert to Array, as this works better with the convex hull computation
 		System.out.println("Dataset size: " + getDatasetSize());
 		ConvexHull convexHull = new ConvexHull(PivotUtilities.convertPointListToCoordArray(points, getDatasetSize()), new GeometryFactory());
+		System.out.println("Calling envelop setting...");
 		setEnvelopeValues(PivotUtilities.convertCoordArrayToPointList(convexHull.getConvexHull()
 				.getEnvelope().getCoordinates()), convexHull.getConvexHull().getCentroid());
 		return PivotUtilities.convertCoordArrayToPointList(convexHull.getConvexHull().getCoordinates());
 	}
 
 	private List<Mutation> getQuadrantMutations(){
+		System.out.println("Writing quadrant mutations...");
 		List<Mutation> mutations = new ArrayList<Mutation>();
 		mutations.add(AccumuloConnectionManager.getMutation("!!!QUADRANT", "UPPER", "LEFT", gson.toJson(upperLeft, Quadrant.class)));
 		mutations.add(AccumuloConnectionManager.getMutation("!!!QUADRANT", "UPPER", "RIGHT", gson.toJson(upperRight, Quadrant.class)));
@@ -416,10 +402,10 @@ public class AccumuloPivotIndex extends PivotIndex implements IIndexingScheme {
 					batchWriterIndex = 0;
 				}
 			}
-			upperLeft.setDensity(upperLeft.getDensity());
-			upperRight.setDensity(upperRight.getDensity());
-			lowerLeft.setDensity(lowerLeft.getDensity());
-			lowerRight.setDensity(lowerRight.getDensity());
+			upperLeft.setDensity(upperLeft.calculateDensity());
+			upperRight.setDensity(upperRight.calculateDensity());
+			lowerLeft.setDensity(lowerLeft.calculateDensity());
+			lowerRight.setDensity(lowerRight.calculateDensity());
 			mutations.addAll(getQuadrantMutations());
 			AccumuloConnectionManager.writeMutations(mutations, "points", bwConfig);
 		} catch (Exception e) {
