@@ -80,11 +80,13 @@ public class PivotIndex implements IIndexingScheme {
 		//Get value of first range query
 		double range = deriveRange(k, density);
 		//Issue successive range query until kNN found
+		int iterations = 1;
 		while(kNN.size() < k){
 			kNN.addAll(rangeQuery(points, pivots, queryPoint, 
-					distanceMap, range));
+					distanceMap, range * iterations));
 			System.out.println("Range: " + range + ", number of neighbors: " + kNN.size());
 			range = deriveRange(k++, density);
+			iterations++;
 			
 		}
 		System.out.println("number of neighbors: " + kNN.size());

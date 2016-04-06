@@ -134,7 +134,7 @@ public class PivotTester {
 		
 		//For range query -- 
 		//runTest(californiaPoints, pivotIndex, false, true, 250.0, 15);
-		runTest(californiaPoints, pivotIndex, true, false, 250.0, 4000);
+		runTest(californiaPoints, pivotIndex, false, true, 250.0, 275000);
 		
 		
 		/*long startTime = System.currentTimeMillis();
